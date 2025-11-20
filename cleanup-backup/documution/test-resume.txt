@@ -1,0 +1,19 @@
+
+John Doe
+Email: john@example.com
+Phone: +1234567890
+Location: New York
+
+EXPERIENCE
+5 years of experience in software development
+
+SKILLS
+- JavaScript
+- React
+- Node.js
+- Python
+- SQL
+
+EDUCATION
+Bachelor of Science in Computer Science
+      

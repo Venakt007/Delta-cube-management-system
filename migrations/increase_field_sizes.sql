@@ -1,0 +1,13 @@
+-- Increase field sizes to handle longer data
+ALTER TABLE applications ALTER COLUMN name TYPE VARCHAR(255);
+ALTER TABLE applications ALTER COLUMN email TYPE VARCHAR(255);
+ALTER TABLE applications ALTER COLUMN phone TYPE VARCHAR(50);
+ALTER TABLE applications ALTER COLUMN linkedin TYPE VARCHAR(500);
+ALTER TABLE applications ALTER COLUMN technology TYPE VARCHAR(255);
+ALTER TABLE applications ALTER COLUMN primary_skill TYPE VARCHAR(500);
+ALTER TABLE applications ALTER COLUMN secondary_skill TYPE VARCHAR(500);
+ALTER TABLE applications ALTER COLUMN location TYPE VARCHAR(255);
+ALTER TABLE applications ALTER COLUMN resume_url TYPE VARCHAR(500);
+ALTER TABLE applications ALTER COLUMN id_proof_url TYPE VARCHAR(500);
+ALTER TABLE applications ALTER COLUMN job_types TYPE VARCHAR(500);
+ALTER TABLE applications ALTER COLUMN referral_source TYPE VARCHAR(255);
