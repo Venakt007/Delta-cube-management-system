@@ -1,35 +1,66 @@
-# Production Deployment Guide
+# Production Deployment Guide - Recruitment Management System
 
-## Pre-Deployment Checklist
+## 📋 Pre-Deployment Checklist
 
 ### 1. Environment Variables
+Create production `.env` file with these settings:
+
+```env
+# Server Configuration
+PORT=5000
+NODE_ENV=production
+
+# Database Configuration
+DATABASE_URL=postgresql://username:password@localhost:5432/recruitment_db
+
+# Security
+JWT_SECRET=your_super_secure_jwt_secret_minimum_32_characters_long
+
+# AI Services
+OPENAI_API_KEY=sk-your-production-openai-api-key
+
+# Optional: Google Places API (for location autocomplete)
+GOOGLE_PLACES_API_KEY=your_google_places_api_key
+```
+
+**Important:**
 - [ ] Set `NODE_ENV=production` in `.env`
-- [ ] Use strong `JWT_SECRET` (minimum 32 characters)
-- [ ] Configure production database URL
-- [ ] Set valid `OPENAI_API_KEY`
+- [ ] Use strong `JWT_SECRET` (minimum 32 characters, use: `openssl rand -base64 32`)
+- [ ] Configure production database URL with strong password
+- [ ] Set valid `OPENAI_API_KEY` for resume parsing
 - [ ] Remove any development-only variables
+- [ ] Never commit `.env` to version control
 
 ### 2. Security
-- [ ] Change default admin password
-- [ ] Enable HTTPS/SSL
-- [ ] Configure CORS for production domain
+- [ ] Change default admin passwords (all users currently use `admin123`)
+- [ ] Enable HTTPS/SSL with valid certificate
+- [ ] Configure CORS for production domain in `server.js`
 - [ ] Set secure cookie flags
-- [ ] Enable rate limiting
-- [ ] Configure firewall rules
+- [ ] Enable rate limiting (install `express-rate-limit`)
+- [ ] Configure firewall rules (allow only 80, 443, 22)
+- [ ] Disable directory listing for `/uploads`
+- [ ] Set proper file permissions (uploads folder: 755)
 
 ### 3. Database
-- [ ] Run all migrations
-- [ ] Create database backups
-- [ ] Set up automated backup schedule
-- [ ] Configure connection pooling
-- [ ] Optimize indexes
+- [ ] Create production PostgreSQL database: `recruitment_db`
+- [ ] Run database setup: `node setup-database.js`
+- [ ] Create admin users: `node create-default-users.js` (then change passwords!)
+- [ ] Verify setup: `node verify-database.js`
+- [ ] Create initial database backup
+- [ ] Set up automated backup schedule (daily recommended)
+- [ ] Configure connection pooling (already configured in `config/db.js`)
+- [ ] Test database connection
 
 ### 4. Application
-- [ ] Build React frontend (`cd client && npm run build`)
-- [ ] Test all features in staging
+- [ ] Install production dependencies: `npm install --production`
+- [ ] Build React frontend: `cd client && npm run build`
+- [ ] Test all features in staging environment
 - [ ] Remove debug code and console logs
-- [ ] Configure error logging
-- [ ] Set up monitoring
+- [ ] Configure error logging (Winston or similar)
+- [ ] Set up monitoring (PM2, New Relic, or Datadog)
+- [ ] Test file upload limits (5MB per file, 200 files bulk)
+- [ ] Verify resume parsing with OpenAI API
+- [ ] Test all user roles (admin, recruiter)
 
 ## Deployment Steps
 
@@ -57,25 +88,60 @@ sudo npm install -g pm2
 git clone <repository-url>
 cd recruitment-system
 
-# Install dependencies
+# Install backend dependencies
+npm install --production
+
+# Install frontend dependencies and build
+cd client
 npm install
-cd client && npm install && npm run build && cd ..
+npm run build
+cd ..
 
 # Set up environment
 cp .env.example .env
 nano .env  # Edit with production values
 
-# Run migrations
-node run-migration.js
-node run-field-migration.js
+# Create uploads directory with proper permissions
+mkdir -p uploads
+chmod 755 uploads
 
-# Create admin user
-node scripts/createAdmin.js
+# Set up database
+node setup-database.js
+
+# Create admin users (IMPORTANT: Change passwords after first login!)
+node create-default-users.js
+
+# Verify database setup
+node verify-database.js
+
+# Test database operations
+node test-database-operations.js
+
+# Configure server to serve built React app
+# (Already configured in server.js to serve client/build)
 
 # Start with PM2
-pm2 start server.js --name recruitment-app
+pm2 start server.js --name recruitment-app --max-memory-restart 500M
 pm2 save
 pm2 startup
+
+# Monitor application
+pm2 monit
+```
+
+**Post-Deployment Tasks:**
+```bash
+# View logs
+pm2 logs recruitment-app
+
+# Check status
+pm2 status
+
+# Restart if needed
+pm2 restart recruitment-app
+
+# Stop application
+pm2 stop recruitment-app
 ```
 
 #### 3. Nginx Configuration
@@ -176,30 +242,77 @@ docker-compose exec app node scripts/createAdmin.js
 
 ### Option 3: Cloud Platform (Heroku/Railway/Render)
 
-#### Heroku
+#### Heroku Deployment
 ```bash
 # Install Heroku CLI
 heroku login
 
 # Create app
-heroku create your-app-name
+heroku create your-recruitment-app
 
-# Add PostgreSQL
+# Add PostgreSQL addon
 heroku addons:create heroku-postgresql:hobby-dev
 
 # Set environment variables
 heroku config:set NODE_ENV=production
-heroku config:set JWT_SECRET=your_secret
-heroku config:set OPENAI_API_KEY=your_key
+heroku config:set JWT_SECRET=$(openssl rand -base64 32)
+heroku config:set OPENAI_API_KEY=your_openai_key
+heroku config:set GOOGLE_PLACES_API_KEY=your_google_key
+
+# Add buildpack for Node.js
+heroku buildpacks:add heroku/nodejs
 
 # Deploy
 git push heroku main
 
-# Run migrations
-heroku run node run-migration.js
-heroku run node run-field-migration.js
-heroku run node scripts/createAdmin.js
+# Run database setup
+heroku run node setup-database.js
+
+# Create admin users
+heroku run node create-default-users.js
+
+# Verify deployment
+heroku open
+heroku logs --tail
 ```
+
+#### Railway Deployment
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login
+railway login
+
+# Initialize project
+railway init
+
+# Link to PostgreSQL
+railway add postgresql
+
+# Set environment variables
+railway variables set NODE_ENV=production
+railway variables set JWT_SECRET=$(openssl rand -base64 32)
+railway variables set OPENAI_API_KEY=your_openai_key
+
+# Deploy
+railway up
+
+# Run database setup
+railway run node setup-database.js
+railway run node create-default-users.js
+```
+
+#### Render Deployment
+1. Create account at render.com
+2. Create new Web Service
+3. Connect your GitHub repository
+4. Configure:
+   - Build Command: `npm install && cd client && npm install && npm run build`
+   - Start Command: `node server.js`
+5. Add PostgreSQL database
+6. Set environment variables in dashboard
+7. Deploy and run setup commands via shell
 
 ## Post-Deployment
 
@@ -232,12 +345,38 @@ crontab -e
 0 2 * * * /home/user/backup-db.sh
 ```
 
-### 3. Health Checks
+### 3. Serve React Build in Production
+
+Add this to your `server.js` (after all API routes):
+
+```javascript
+// Serve static files from React build
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'client/build')));
+  
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  });
+}
+```
+
+### 4. Health Checks
 Create a health check endpoint in `server.js`:
 ```javascript
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV
+  });
 });
+```
+
+Test health check:
+```bash
+curl http://localhost:5000/health
 ```
 
 ### 4. Performance Optimization
@@ -358,13 +497,243 @@ npm audit fix
 cd client && npm audit fix
 ```
 
-## Support
+## 📊 System Requirements
 
-For deployment issues, contact the development team with:
-- Error logs
-- Environment details
-- Steps to reproduce
+### Minimum Requirements:
+- **CPU:** 2 cores
+- **RAM:** 2GB
+- **Storage:** 20GB (10GB for app + 10GB for uploads)
+- **Node.js:** v14 or higher
+- **PostgreSQL:** v12 or higher
+
+### Recommended for Production:
+- **CPU:** 4 cores
+- **RAM:** 4GB
+- **Storage:** 50GB SSD
+- **Node.js:** v18 LTS
+- **PostgreSQL:** v14 or higher
+- **Bandwidth:** Unlimited or 1TB+
 
 ---
 
-**Last Updated:** January 2025
+## 🔐 Default User Accounts
+
+After running `node create-default-users.js`, these accounts are created:
+
+### Admin Accounts:
+- Email: `Manoj@deltacubs.us` / Password: `admin123`
+- Email: `bhargav@deltacubes.us` / Password: `admin123`
+
+### Recruiter Accounts:
+- Email: `Indu@deltacubs.us` / Password: `admin123`
+- Email: `soundharya@deltacubs.us` / Password: `admin123`
+
+**⚠️ CRITICAL: Change all passwords immediately after first login!**
+
+To reset passwords:
+```bash
+node reset-all-passwords.js
+```
+
+---
+
+## 📁 Project Structure
+
+```
+recruitment-system/
+├── client/                    # React frontend
+│   ├── build/                # Production build (after npm run build)
+│   ├── public/               # Static files
+│   ├── src/
+│   │   ├── components/       # Reusable components
+│   │   │   ├── CandidateModal.js
+│   │   │   ├── LocationAutocomplete.js
+│   │   │   └── TechnologySelect.js
+│   │   ├── pages/           # Page components
+│   │   │   ├── AdminDashboard.js
+│   │   │   ├── RecruiterDashboard.js
+│   │   │   └── Login.js
+│   │   └── App.js
+│   └── package.json
+├── config/
+│   └── db.js                # Database connection
+├── middleware/
+│   ├── auth.js              # JWT authentication
+│   └── upload.js            # File upload handling
+├── migrations/              # Database migrations
+├── routes/
+│   ├── admin.js            # Admin endpoints
+│   ├── applications.js     # Application management
+│   ├── auth.js             # Authentication
+│   ├── locations.js        # Location autocomplete
+│   └── technologies.js     # Technology management
+├── scripts/
+│   ├── createAdmin.js      # Create admin user
+│   └── create-default-users.js
+├── uploads/                # Resume storage (create this!)
+├── utils/
+│   └── resumeParser.js     # AI resume parsing
+├── .env                    # Environment variables (create from .env.example)
+├── .env.example            # Environment template
+├── server.js               # Express server
+├── setup-database.js       # Database setup script
+├── verify-database.js      # Verify database
+└── package.json
+```
+
+---
+
+## 🚀 Quick Start Commands
+
+### Development:
+```bash
+# Backend
+npm run dev
+
+# Frontend (separate terminal)
+cd client && npm start
+```
+
+### Production:
+```bash
+# Build frontend
+cd client && npm run build && cd ..
+
+# Start with PM2
+pm2 start server.js --name recruitment-app
+
+# Or start directly
+NODE_ENV=production node server.js
+```
+
+---
+
+## 📞 Support & Troubleshooting
+
+### Common Issues:
+
+**1. "Cannot connect to database"**
+```bash
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+
+# Test connection
+psql -U postgres -d recruitment_db
+
+# Check DATABASE_URL in .env
+```
+
+**2. "Port 5000 already in use"**
+```bash
+# Find process using port
+lsof -i :5000
+
+# Kill process
+kill -9 <PID>
+
+# Or change PORT in .env
+```
+
+**3. "Resume parsing failed"**
+- Verify OPENAI_API_KEY is valid
+- Check OpenAI API quota/billing
+- Ensure resume file is PDF or DOCX
+- Check file size (max 5MB)
+
+**4. "Upload folder not writable"**
+```bash
+# Set proper permissions
+chmod 755 uploads
+chown -R $USER:$USER uploads
+```
+
+**5. "Frontend not loading"**
+```bash
+# Rebuild frontend
+cd client
+npm run build
+cd ..
+
+# Restart server
+pm2 restart recruitment-app
+```
+
+### Getting Help:
+
+For deployment issues, provide:
+1. **Error logs:** `pm2 logs recruitment-app --lines 100`
+2. **Environment:** OS, Node version, PostgreSQL version
+3. **Steps to reproduce:** What you did before the error
+4. **Screenshots:** If UI-related issue
+
+### Useful Commands:
+```bash
+# Check Node version
+node --version
+
+# Check PostgreSQL version
+psql --version
+
+# Check disk space
+df -h
+
+# Check memory usage
+free -m
+
+# Check running processes
+pm2 list
+
+# View real-time logs
+pm2 logs recruitment-app --lines 100 --raw
+
+# Restart application
+pm2 restart recruitment-app
+
+# Stop application
+pm2 stop recruitment-app
+
+# Delete from PM2
+pm2 delete recruitment-app
+```
+
+---
+
+## 📝 Deployment Checklist
+
+Before going live, verify:
+
+- [ ] All environment variables set correctly
+- [ ] Database created and migrations run
+- [ ] Admin users created and passwords changed
+- [ ] Frontend built successfully
+- [ ] HTTPS/SSL certificate installed
+- [ ] Firewall configured
+- [ ] Backup system in place
+- [ ] Monitoring set up
+- [ ] Error logging configured
+- [ ] All features tested in production
+- [ ] Load testing completed
+- [ ] Security audit performed
+- [ ] Documentation updated
+- [ ] Team trained on system
+
+---
+
+## 🎯 Performance Optimization Tips
+
+1. **Enable Gzip Compression** (Nginx)
+2. **Set up CDN** for static assets
+3. **Database Connection Pooling** (already configured)
+4. **Implement Caching** (Redis for session storage)
+5. **Optimize Images** in uploads folder
+6. **Enable HTTP/2** in Nginx
+7. **Use PM2 Cluster Mode** for multiple CPU cores
+8. **Regular Database Maintenance** (VACUUM, ANALYZE)
+
+---
+
+**System Version:** 1.0.0  
+**Last Updated:** December 2, 2025  
+**Status:** Production Ready ✅
+
+For questions or support, contact the development team.

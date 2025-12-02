@@ -105,7 +105,7 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, upload.array('resumes', 20
 router.get('/my-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, phone, primary_skill, experience_years, location, resume_url, created_at, parsed_data, recruitment_status, placement_status, referral_source
+      `SELECT id, name, email, phone, linkedin, technology, primary_skill, secondary_skill, experience_years, location, job_types, resume_url, id_proof_url, created_at, parsed_data, recruitment_status, placement_status, referral_source
       FROM applications 
       WHERE uploaded_by = $1 AND source = 'dashboard'
       ORDER BY created_at DESC`,
@@ -123,7 +123,7 @@ router.get('/my-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
 router.get('/social-media-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, phone, primary_skill, experience_years, location, resume_url, created_at, parsed_data, recruitment_status, placement_status, referral_source, source
+      `SELECT id, name, email, phone, linkedin, technology, primary_skill, secondary_skill, experience_years, location, job_types, resume_url, id_proof_url, created_at, parsed_data, recruitment_status, placement_status, referral_source, source
       FROM applications 
       WHERE source = 'html_form'
       ORDER BY created_at DESC`
@@ -275,7 +275,7 @@ router.post('/check-profile', auth, isRecruiterOrAdmin, async (req, res) => {
     const { name, email, phone } = req.body;
 
     const result = await pool.query(
-      `SELECT id, name, email, phone, primary_skill, experience_years, location 
+      `SELECT id, name, email, phone, linkedin, technology, primary_skill, secondary_skill, experience_years, location, job_types
        FROM applications 
        WHERE uploaded_by = $1 AND (email = $2 OR phone = $3)
        ORDER BY created_at DESC 
