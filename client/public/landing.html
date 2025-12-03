@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruitment Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(to bottom right, #eff6ff, #e0e7ff);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 48px 32px;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 12px;
+        }
+
+        .header p {
+            font-size: 18px;
+            color: #6b7280;
+        }
+
+        .content {
+            padding: 48px 32px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+            margin-bottom: 48px;
+        }
+
+        .section {
+            padding: 32px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .section:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 16px;
+        }
+
+        .section p {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #059669;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            padding-top: 32px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .feature {
+            text-align: center;
+        }
+
+        .feature h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .section h2 {
+                font-size: 20px;
+            }
+
+            .content {
+                padding: 32px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>Recruitment Portal</h1>
+                <p>Welcome to our recruitment management system</p>
+            </div>
+
+            <div class="content">
+                <div class="grid">
+                    <!-- For Candidates -->
+                    <div class="section">
+                        <h2>For Candidates</h2>
+                        <p>Submit your application and let us help you find the perfect opportunity that matches your skills and experience.</p>
+                        <a href="/apply.html" class="btn btn-secondary">Apply Now</a>
+                    </div>
+
+                    <!-- For Staff -->
+                    <div class="section">
+                        <h2>Staff Portal</h2>
+                        <p>Access the recruitment management system to review applications, manage candidates, and track hiring progress.</p>
+                        <a href="http://localhost:3000/login" class="btn btn-primary" id="staffLoginBtn">Staff Login</a>
+                    </div>
+                </div>
+
+                <!-- Features -->
+                <div class="features">
+                    <div class="feature">
+                        <h3>Quick Apply</h3>
+                        <p>Simple and fast application process</p>
+                    </div>
+                    <div class="feature">
+                        <h3>AI-Powered</h3>
+                        <p>Smart resume parsing and matching</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Secure</h3>
+                        <p>Your data is safe with us</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Detect if in production or development
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        
+        // Update staff login link based on environment
+        const staffLoginBtn = document.getElementById('staffLoginBtn');
+        if (isProduction) {
+            staffLoginBtn.href = '/login';
+        } else {
+            staffLoginBtn.href = 'http://localhost:3000/login';
+        }
+    </script>
+</body>
+</html>
