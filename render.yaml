@@ -1,0 +1,28 @@
+services:
+  # Web Service
+  - type: web
+    name: recruitment-app
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && cd client && npm install && npm run build && cd ..
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: recruitment-db
+          property: connectionString
+
+  # PostgreSQL Database
+  - type: pstg
+    name: recruitment-db
+    region: oregon
+    plan: free
+    databaseName: recruitment_db
+    databaseUser: recruitment_user

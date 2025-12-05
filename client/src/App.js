@@ -4,6 +4,7 @@ import ApplicationForm from './pages/ApplicationForm';
 import Login from './pages/Login';
 import RecruiterDashboard from './pages/RecruiterDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
 // Protected Route Component
 function ProtectedRoute({ children, allowedRole }) {
@@ -47,6 +48,14 @@ function App() {
           element={
             <ProtectedRoute allowedRole="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/super-admin" 
+          element={
+            <ProtectedRoute allowedRole="super_admin">
+              <SuperAdminDashboard />
             </ProtectedRoute>
           } 
         />

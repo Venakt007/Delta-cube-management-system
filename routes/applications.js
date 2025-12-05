@@ -140,38 +140,19 @@ router.get('/social-media-resumes', auth, isRecruiterOrAdmin, async (req, res) =
 router.post('/jd-match-social', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
     const { jobDescription } = req.body;
+    const { matchCandidateToJD } = require('../utils/jd-matcher');
 
     // Get social media resumes only
     const resumes = await pool.query(
       `SELECT * FROM applications WHERE source = 'html_form' ORDER BY created_at DESC`
     );
 
-    // Simple matching logic (you can enhance this)
+    // Use advanced matching algorithm
     const matches = resumes.rows.map(resume => {
-      const jdLower = jobDescription.toLowerCase();
-      const candidateSkills = [
-        ...(resume.parsed_data?.skills || []),
-        resume.primary_skill,
-        resume.secondary_skill
-      ].filter(Boolean).map(s => s.toLowerCase());
-
-      // Count skill matches
-      let matchCount = 0;
-      candidateSkills.forEach(skill => {
-        if (jdLower.includes(skill)) {
-          matchCount++;
-        }
-      });
-
-      // Calculate percentage (simple formula)
-      const matchPercentage = candidateSkills.length > 0 
-        ? Math.min(Math.round((matchCount / candidateSkills.length) * 100), 100)
-        : 0;
-
+      const matchResult = matchCandidateToJD(resume, jobDescription);
       return {
         ...resume,
-        matchPercentage,
-        matchingSkills: candidateSkills.filter(skill => jdLower.includes(skill))
+        ...matchResult
       };
     });
 
@@ -304,7 +285,8 @@ router.post('/check-profile', auth, isRecruiterOrAdmin, async (req, res) => {
 // Manual entry
 router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
   { name: 'resume', maxCount: 1 },
-  { name: 'id_proof', maxCount: 1 }
+  { name: 'id_proof', maxCount: 1 },
+  { name: 'edited_resume', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const { name, email, phone, linkedin, technology, primary_skill, secondary_skill, location, experience_years, job_types, action, existing_id } = req.body;
@@ -319,6 +301,7 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
     
     const resumeUrl = req.files['resume'] ? `/uploads/${req.files['resume'][0].filename}` : null;
     const idProofUrl = req.files['id_proof'] ? `/uploads/${req.files['id_proof'][0].filename}` : null;
+    const editedResumeUrl = req.files['edited_resume'] ? `/uploads/${req.files['edited_resume'][0].filename}` : null;
 
     // Parse resume if uploaded
     let parsedData = null;
@@ -350,11 +333,12 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
              primary_skill = $6, secondary_skill = $7, location = $8, experience_years = $9,
              job_types = $10,
              resume_url = COALESCE($11, resume_url), id_proof_url = COALESCE($12, id_proof_url),
-             parsed_data = $13
-         WHERE id = $14 AND uploaded_by = $15
+             edited_resume_url = COALESCE($13, edited_resume_url),
+             parsed_data = $14
+         WHERE id = $15 AND uploaded_by = $16
          RETURNING id`,
         [name, email, phone || '', linkedin || '', technology || '', primary_skill || '', secondary_skill || '', location || '', sanitizedExperienceYears, 
-         job_types || '', resumeUrl, idProofUrl, JSON.stringify(parsedData), existing_id, req.user.id]
+         job_types || '', resumeUrl, idProofUrl, editedResumeUrl, JSON.stringify(parsedData), existing_id, req.user.id]
       );
       
       if (result.rows.length === 0) {
@@ -373,11 +357,11 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
       const result = await pool.query(
         `INSERT INTO applications 
         (name, email, phone, linkedin, technology, primary_skill, secondary_skill, location, experience_years, 
-         job_types, resume_url, id_proof_url, source, uploaded_by, parsed_data)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         job_types, resume_url, id_proof_url, edited_resume_url, source, uploaded_by, parsed_data)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING id`,
         [name, email, phone || '', linkedin || '', technology || '', primary_skill || '', secondary_skill || '', location || '', sanitizedExperienceYears,
-         job_types || '', resumeUrl, idProofUrl, 'dashboard', req.user.id, parsedData ? JSON.stringify(parsedData) : null]
+         job_types || '', resumeUrl, idProofUrl, editedResumeUrl, 'dashboard', req.user.id, parsedData ? JSON.stringify(parsedData) : null]
       );
       console.log('✅ Profile created successfully:', result.rows[0].id);
       res.json({ message: 'Profile created successfully', id: result.rows[0].id });

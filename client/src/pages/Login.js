@@ -25,7 +25,10 @@ function Login() {
       console.log('Navigating to dashboard...');
 
       // Force page reload to ensure App.js reads updated localStorage
-      if (response.data.user.role === 'admin') {
+      if (response.data.user.role === 'super_admin') {
+        console.log('Redirecting to /super-admin');
+        window.location.href = '/super-admin';
+      } else if (response.data.user.role === 'admin') {
         console.log('Redirecting to /admin');
         window.location.href = '/admin';
       } else {

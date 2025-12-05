@@ -26,7 +26,7 @@ function RecruiterDashboard() {
     experience_years: '',
     job_types: [] // Array to store multiple selections
   });
-  const [files, setFiles] = useState({ resume: null, id_proof: null });
+  const [files, setFiles] = useState({ resume: null, id_proof: null, edited_resume: null });
   const [message, setMessage] = useState('');
   const [checkResult, setCheckResult] = useState(null);
   const [showCheckButton, setShowCheckButton] = useState(false);
@@ -415,6 +415,7 @@ function RecruiterDashboard() {
     });
     if (files.resume) data.append('resume', files.resume);
     if (files.id_proof) data.append('id_proof', files.id_proof);
+    if (files.edited_resume) data.append('edited_resume', files.edited_resume);
     
     // If editing, use update action
     if (editingResume) {
@@ -439,7 +440,7 @@ function RecruiterDashboard() {
         name: '', email: '', phone: '', linkedin: '', technology: '',
         primary_skill: '', secondary_skill: '', location: '', experience_years: '', job_types: []
       });
-      setFiles({ resume: null, id_proof: null });
+      setFiles({ resume: null, id_proof: null, edited_resume: null });
       setCheckResult(null);
       setShowCheckButton(false);
       setEditingResume(null);
@@ -771,7 +772,7 @@ function RecruiterDashboard() {
                   </div>
 
                   {/* File Uploads - Now Optional */}
-                  <div className="grid md:grid-cols-2 gap-6 mt-6">
+                  <div className="grid md:grid-cols-3 gap-6 mt-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Resume (PDF/DOCX) <span className="text-gray-500 text-xs">(Optional)</span></label>
                       <input
@@ -792,6 +793,20 @@ function RecruiterDashboard() {
                         accept=".pdf,.jpg,.jpeg,.png"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Edited Resume <span className="text-blue-600 text-xs">(Optional - Recruiter Only)</span>
+                      </label>
+                      <input
+                        type="file"
+                        name="edited_resume"
+                        onChange={handleFileChange}
+                        accept=".pdf,.doc,.docx"
+                        className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Upload edited/formatted version of resume</p>
                     </div>
                   </div>
 

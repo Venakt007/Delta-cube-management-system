@@ -11,7 +11,7 @@ router.post('/register', async (req, res) => {
     const { email, password, name, role } = req.body;
 
     // Validate role
-    if (!['admin', 'recruiter'].includes(role)) {
+    if (!['super_admin', 'admin', 'recruiter'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 

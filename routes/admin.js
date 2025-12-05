@@ -97,13 +97,7 @@ router.get('/resumes/filter', auth, isAdmin, async (req, res) => {
 router.post('/jd-match', auth, isAdmin, async (req, res) => {
   try {
     const { jobDescription } = req.body;
-
-    // Parse JD using AI
-    const jdAnalysis = await analyzeJobDescription(jobDescription);
-    
-    if (!jdAnalysis) {
-      return res.status(400).json({ error: 'Failed to analyze job description' });
-    }
+    const { matchCandidateToJD } = require('../utils/jd-matcher');
 
     // Get all resumes - Exclude "Onboarded" placement status
     const resumes = await pool.query(
@@ -113,15 +107,12 @@ router.post('/jd-match', auth, isAdmin, async (req, res) => {
        WHERE (a.placement_status IS NULL OR a.placement_status <> 'Onboarded')`
     );
 
-    // Calculate match for each resume
+    // Use advanced matching algorithm
     const matches = resumes.rows.map(resume => {
-      const matchResult = calculateMatch(jdAnalysis, resume);
+      const matchResult = matchCandidateToJD(resume, jobDescription);
       return {
         ...resume,
-        matchPercentage: matchResult.percentage,
-        matchingSkills: matchResult.matchingSkills,
-        missingSkills: matchResult.missingSkills,
-        experienceMatch: matchResult.experienceMatch
+        ...matchResult
       };
     });
 
@@ -129,7 +120,6 @@ router.post('/jd-match', auth, isAdmin, async (req, res) => {
     matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
 
     res.json({
-      jdAnalysis,
       matches: matches.filter(m => m.matchPercentage > 0)
     });
   } catch (error) {

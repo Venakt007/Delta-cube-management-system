@@ -17,6 +17,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/applications', require('./routes/applications'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/super-admin', require('./routes/super-admin'));
 app.use('/api/locations', require('./routes/locations'));
 app.use('/api/technologies', require('./routes/technologies'));
 
@@ -46,7 +47,7 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, 'client/public/landing.html'));
   });
   
-  // Handle React routing for dashboard (login, admin, recruiter)
+  // Handle React routing for dashboard (login, admin, recruiter, super-admin)
   app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
@@ -56,6 +57,10 @@ if (process.env.NODE_ENV === 'production') {
   });
   
   app.get('/recruiter', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  });
+  
+  app.get('/super-admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
 } else {

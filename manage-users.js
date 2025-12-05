@@ -27,10 +27,10 @@ async function addUser() {
   const email = await question('Email: ');
   const name = await question('Name: ');
   const password = await question('Password: ');
-  const role = await question('Role (admin/recruiter): ');
+  const role = await question('Role (super_admin/admin/recruiter): ');
   
-  if (!['admin', 'recruiter'].includes(role)) {
-    console.log('❌ Invalid role! Must be "admin" or "recruiter"');
+  if (!['super_admin', 'admin', 'recruiter'].includes(role)) {
+    console.log('❌ Invalid role! Must be "super_admin", "admin", or "recruiter"');
     return;
   }
   

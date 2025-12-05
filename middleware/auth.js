@@ -24,10 +24,20 @@ const isAdmin = (req, res, next) => {
 };
 
 const isRecruiterOrAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'recruiter') {
+  if (req.user.role !== 'admin' && req.user.role !== 'recruiter' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: 'Recruiter or Admin access required' });
   }
   next();
 };
 
-module.exports = { auth, isAdmin, isRecruiterOrAdmin };
+const isSuperAdmin = (req, res, next) => {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Super Admin access required' });
+  }
+  next();
+};
+
+// Alias for consistency
+const authenticateToken = auth;
+
+module.exports = { auth, authenticateToken, isAdmin, isRecruiterOrAdmin, isSuperAdmin };

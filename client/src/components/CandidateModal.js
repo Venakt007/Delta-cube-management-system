@@ -147,6 +147,17 @@ const CandidateModal = ({ candidate, onClose }) => {
               Download Resume
             </a>
           )}
+          {candidate.edited_resume_url && candidate.source === 'dashboard' && (
+            <a
+              href={`http://localhost:5000${candidate.edited_resume_url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium"
+              title="Edited resume uploaded by recruiter"
+            >
+              📝 Download Edited Resume
+            </a>
+          )}
           <button
             onClick={onClose}
             className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 text-sm ml-auto"
