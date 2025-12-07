@@ -139,7 +139,7 @@ const CandidateModal = ({ candidate, onClose }) => {
         <div className="bg-gray-50 px-4 py-3 flex justify-between items-center sticky bottom-0">
           {candidate.resume_url && (
             <a
-              href={`http://localhost:5000${candidate.resume_url}`}
+              href={`${window.location.origin}${candidate.resume_url}`}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
@@ -149,7 +149,7 @@ const CandidateModal = ({ candidate, onClose }) => {
           )}
           {candidate.edited_resume_url && candidate.source === 'dashboard' && (
             <a
-              href={`http://localhost:5000${candidate.edited_resume_url}`}
+              href={`${window.location.origin}${candidate.edited_resume_url}`}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium"
