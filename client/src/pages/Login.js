@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Logo from '../components/Logo';
 
 function Login() {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -46,6 +47,9 @@ function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+        <div className="flex justify-center mb-6">
+          <Logo size="large" />
+        </div>
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Login</h1>
         
         {error && (

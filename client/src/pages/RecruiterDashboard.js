@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import LocationAutocomplete from '../components/LocationAutocomplete';
 import TechnologySelect from '../components/TechnologySelect';
+import Logo from '../components/Logo';
 import CandidateModal from '../components/CandidateModal';
 
 function RecruiterDashboard() {
@@ -459,7 +460,10 @@ function RecruiterDashboard() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Recruiter Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <Logo size="small" />
+            <h1 className="text-2xl font-bold text-gray-800">Recruiter Dashboard</h1>
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-gray-600">Welcome, {user.name}</span>
             <button onClick={handleLogout} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
