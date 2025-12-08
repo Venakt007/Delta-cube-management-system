@@ -9,33 +9,68 @@ const os = require('os');
 async function extractTextFromPDF(filePath) {
   let dataBuffer;
   
-  // Check if it's a URL
-  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-    console.log('📥 Downloading PDF from URL...');
-    const response = await axios.get(filePath, { responseType: 'arraybuffer' });
-    dataBuffer = Buffer.from(response.data);
-  } else {
-    // Local file
-    dataBuffer = fs.readFileSync(filePath);
+  try {
+    // Check if it's a URL
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      console.log('📥 Downloading PDF from URL:', filePath);
+      const response = await axios.get(filePath, { 
+        responseType: 'arraybuffer',
+        timeout: 30000,  // 30 second timeout
+        maxContentLength: 10 * 1024 * 1024  // 10MB max
+      });
+      console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
+      dataBuffer = Buffer.from(response.data);
+    } else {
+      // Local file
+      console.log('📂 Reading local file:', filePath);
+      dataBuffer = fs.readFileSync(filePath);
+      console.log(`✅ Read ${dataBuffer.length} bytes`);
+    }
+    
+    console.log('📖 Parsing PDF...');
+    const data = await pdf(dataBuffer);
+    console.log(`✅ Extracted ${data.text.length} characters from PDF`);
+    return data.text;
+  } catch (error) {
+    console.error('❌ PDF extraction error:', error.message);
+    if (error.response) {
+      console.error('   HTTP Status:', error.response.status);
+      console.error('   HTTP Headers:', error.response.headers);
+    }
+    throw error;
   }
-  
-  const data = await pdf(dataBuffer);
-  return data.text;
 }
 
 // Extract text from DOCX (handles both local files and URLs)
 async function extractTextFromDOCX(filePath) {
-  // Check if it's a URL
-  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-    console.log('📥 Downloading DOCX from URL...');
-    const response = await axios.get(filePath, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(response.data);
-    const result = await mammoth.extractRawText({ buffer: buffer });
-    return result.value;
-  } else {
-    // Local file
-    const result = await mammoth.extractRawText({ path: filePath });
-    return result.value;
+  try {
+    // Check if it's a URL
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      console.log('📥 Downloading DOCX from URL:', filePath);
+      const response = await axios.get(filePath, { 
+        responseType: 'arraybuffer',
+        timeout: 30000,
+        maxContentLength: 10 * 1024 * 1024
+      });
+      console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
+      const buffer = Buffer.from(response.data);
+      console.log('📖 Parsing DOCX...');
+      const result = await mammoth.extractRawText({ buffer: buffer });
+      console.log(`✅ Extracted ${result.value.length} characters from DOCX`);
+      return result.value;
+    } else {
+      // Local file
+      console.log('📂 Reading local file:', filePath);
+      const result = await mammoth.extractRawText({ path: filePath });
+      console.log(`✅ Extracted ${result.value.length} characters from DOCX`);
+      return result.value;
+    }
+  } catch (error) {
+    console.error('❌ DOCX extraction error:', error.message);
+    if (error.response) {
+      console.error('   HTTP Status:', error.response.status);
+    }
+    throw error;
   }
 }
 
@@ -293,8 +328,13 @@ function parseResumeBasic(text) {
     const emailMatch = text.match(pattern);
     if (emailMatch) {
       parsed.email = emailMatch[0];
+      console.log(`   ✓ Found email: ${parsed.email}`);
       break;
     }
+  }
+  
+  if (!parsed.email) {
+    console.log('   ✗ No email found');
   }
 
   // Extract phone - try multiple patterns (Indian and international)
@@ -309,8 +349,13 @@ function parseResumeBasic(text) {
     const phoneMatch = text.match(pattern);
     if (phoneMatch) {
       parsed.phone = phoneMatch[0].trim();
+      console.log(`   ✓ Found phone: ${parsed.phone}`);
       break;
     }
+  }
+  
+  if (!parsed.phone) {
+    console.log('   ✗ No phone found');
   }
 
   // Extract name (first non-empty line that's not too long and doesn't have @ or numbers)
