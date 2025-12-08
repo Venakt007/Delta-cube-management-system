@@ -39,11 +39,13 @@ app.get('/apply.html', (req, res) => {
 
 // Serve static files from React build for dashboard routes
 if (process.env.NODE_ENV === 'production') {
-  // Production: Serve React build
-  app.use(express.static(path.join(__dirname, 'client/build')));
-  
-  // Serve landing page at root in production
+  // Serve landing page at root FIRST (before static files)
   app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/public/landing.html'));
+  });
+  
+  // Serve landing page explicitly
+  app.get('/landing.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'client/public/landing.html'));
   });
   
@@ -63,6 +65,9 @@ if (process.env.NODE_ENV === 'production') {
   app.get('/super-admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
+  
+  // Production: Serve React build static files (CSS, JS, etc.)
+  app.use(express.static(path.join(__dirname, 'client/build')));
 } else {
   // Development mode: Proxy to React dev server
   console.log('Development mode: React app should be running on port 3000');
