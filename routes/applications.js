@@ -38,8 +38,18 @@ router.post('/submit', upload.fields([
       return res.status(400).json({ error: 'Name and email are required' });
     }
     
-    const resumeUrl = req.files['resume'] ? `/uploads/${req.files['resume'][0].filename}` : null;
-    const idProofUrl = req.files['id_proof'] ? `/uploads/${req.files['id_proof'][0].filename}` : null;
+    // Get file URLs - handle both Cloudinary and local storage
+    let resumeUrl = null;
+    if (req.files['resume']) {
+      const file = req.files['resume'][0];
+      resumeUrl = file.secure_url || file.url || (file.path && file.path.startsWith('http') ? file.path : `/uploads/${file.filename}`);
+    }
+    
+    let idProofUrl = null;
+    if (req.files['id_proof']) {
+      const file = req.files['id_proof'][0];
+      idProofUrl = file.secure_url || file.url || (file.path && file.path.startsWith('http') ? file.path : `/uploads/${file.filename}`);
+    }
 
     // Parse resume
     let parsedData = null;
