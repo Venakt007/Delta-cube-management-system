@@ -1,13 +1,55 @@
 import React from 'react';
 
 const CandidateModal = ({ candidate, onClose }) => {
-  if (!candidate) return null;
+  if (!candidate) {
+    console.log('CandidateModal: No candidate provided');
+    return null;
+  }
+
+  console.log('CandidateModal: Rendering candidate:', candidate.name);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: '16px'
+      }}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          maxWidth: '768px',
+          width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto'
+        }}
+      >
         {/* Header */}
-        <div className="bg-blue-600 text-white px-4 py-3 flex justify-between items-center sticky top-0">
+        <div 
+          className="bg-blue-600 text-white px-4 py-3 flex justify-between items-center sticky top-0"
+          style={{
+            backgroundColor: '#2563eb',
+            color: 'white',
+            padding: '12px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            position: 'sticky',
+            top: 0
+          }}
+        >
           <h2 className="text-xl font-bold">{candidate.name}</h2>
           <button
             onClick={onClose}
