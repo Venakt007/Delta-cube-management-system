@@ -282,22 +282,60 @@ function parseResumeBasic(text) {
     summary: ''
   };
 
-  // Extract email
-  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
-  if (emailMatch) parsed.email = emailMatch[0];
+  // Extract email - try multiple patterns
+  const emailPatterns = [
+    /[\w.-]+@[\w.-]+\.\w+/,
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
+  ];
+  
+  for (const pattern of emailPatterns) {
+    const emailMatch = text.match(pattern);
+    if (emailMatch) {
+      parsed.email = emailMatch[0];
+      break;
+    }
+  }
 
-  // Extract phone
-  const phoneMatch = text.match(/[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}/);
-  if (phoneMatch) parsed.phone = phoneMatch[0].trim();
+  // Extract phone - try multiple patterns (Indian and international)
+  const phonePatterns = [
+    /[\+]?91[-\s]?[6-9]\d{9}/,  // Indian mobile with +91
+    /[6-9]\d{9}/,  // Indian mobile without country code
+    /[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}/,  // General international
+    /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/  // US format
+  ];
+  
+  for (const pattern of phonePatterns) {
+    const phoneMatch = text.match(pattern);
+    if (phoneMatch) {
+      parsed.phone = phoneMatch[0].trim();
+      break;
+    }
+  }
 
   // Extract name (first non-empty line that's not too long and doesn't have @ or numbers)
   const lines = text.split('\n').filter(line => line.trim());
-  for (const line of lines.slice(0, 5)) {
+  for (const line of lines.slice(0, 10)) {  // Check first 10 lines instead of 5
     const trimmed = line.trim();
-    if (trimmed.length > 3 && trimmed.length < 60 && !trimmed.includes('@') && !trimmed.match(/\d{3}/)) {
+    // Name should be 3-60 chars, no email, no phone numbers, mostly letters
+    if (trimmed.length > 3 && 
+        trimmed.length < 60 && 
+        !trimmed.includes('@') && 
+        !trimmed.match(/\d{3,}/) &&  // No 3+ consecutive digits
+        trimmed.match(/[a-zA-Z]/)) {  // Must have letters
       parsed.name = trimmed;
       break;
     }
+  }
+  
+  // If still no name, try to extract from email
+  if (parsed.name === 'Unknown' && parsed.email) {
+    const emailName = parsed.email.split('@')[0];
+    parsed.name = emailName.replace(/[._-]/g, ' ').replace(/\d+/g, '').trim();
+    // Capitalize first letter of each word
+    parsed.name = parsed.name.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
   }
 
   // Extract skills (common tech keywords)

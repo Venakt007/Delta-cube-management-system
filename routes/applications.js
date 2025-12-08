@@ -118,11 +118,30 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
         
         console.log(`📤 Uploading: ${file.originalname} → ${resumeUrl}`);
         
-        // Skip parsing for now to prevent timeouts - just save the file
+        // Try to parse resume with timeout protection
         let parsedData = null;
-        console.log(`⚠️ Skipping parsing to prevent timeout - saving file only`);
+        try {
+          console.log(`🔍 Attempting to parse: ${file.originalname}`);
+          
+          // Set a timeout for parsing (30 seconds max)
+          const parsePromise = parseResume(resumeUrl);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Parsing timeout')), 30000)
+          );
+          
+          parsedData = await Promise.race([parsePromise, timeoutPromise]);
+          
+          if (parsedData) {
+            console.log(`✅ Successfully parsed: ${file.originalname}`);
+            console.log(`   Name: ${parsedData.name}, Email: ${parsedData.email}, Phone: ${parsedData.phone}`);
+          }
+        } catch (parseError) {
+          console.log(`⚠️ Parsing failed for ${file.originalname}: ${parseError.message}`);
+          console.log(`⚠️ Continuing with filename as name...`);
+          // Continue anyway - file is uploaded, just not parsed
+        }
 
-        // Save to database
+        // Save to database (with or without parsed data)
         const result = await pool.query(
           `INSERT INTO applications 
           (name, email, phone, location, experience_years, resume_url, source, uploaded_by, parsed_data, primary_skill, technology)
