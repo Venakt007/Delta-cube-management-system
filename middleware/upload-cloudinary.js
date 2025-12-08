@@ -24,12 +24,18 @@ const storage = new CloudinaryStorage({
       folder = 'recruitment-uploads/edited-resumes';
     }
     
+    // Determine resource type based on file extension
+    const ext = require('path').extname(file.originalname).toLowerCase();
+    const isDocument = ['.pdf', '.doc', '.docx'].includes(ext);
+    const resourceType = isDocument ? 'raw' : 'image';
+    
     return {
       folder: folder,
       allowed_formats: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-      resource_type: 'auto',
+      resource_type: resourceType,  // Use 'raw' for documents, 'image' for images
       public_id: `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`,
-      use_filename: false
+      use_filename: false,
+      flags: isDocument ? 'attachment' : undefined  // Force download for documents
     };
   }
 });
