@@ -29,14 +29,19 @@ const storage = new CloudinaryStorage({
     const isDocument = ['.pdf', '.doc', '.docx'].includes(ext);
     const resourceType = isDocument ? 'raw' : 'image';
     
-    return {
+    const params = {
       folder: folder,
-      allowed_formats: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-      resource_type: resourceType,  // Use 'raw' for documents, 'image' for images
+      resource_type: resourceType,
       public_id: `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`,
-      use_filename: false,
-      flags: isDocument ? 'attachment' : undefined  // Force download for documents
+      use_filename: false
     };
+    
+    // Only add allowed_formats for images (not for raw files)
+    if (!isDocument) {
+      params.allowed_formats = ['jpg', 'jpeg', 'png'];
+    }
+    
+    return params;
   }
 });
 

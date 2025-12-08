@@ -53,8 +53,22 @@ router.post('/submit', upload.fields([
 });
 
 // Recruiter: Upload resumes (bulk)
-router.post('/upload-bulk', auth, isRecruiterOrAdmin, upload.array('resumes', 200), async (req, res) => {
+router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
+  upload.array('resumes', 200)(req, res, (err) => {
+    if (err) {
+      console.error('❌ Multer/Cloudinary upload error:', err.message);
+      return res.status(500).json({ error: 'File upload failed: ' + err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
+    console.log(`📤 Processing ${req.files?.length || 0} uploaded files...`);
+    
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+    
     const uploadedResumes = [];
     const errors = [];
 
