@@ -87,17 +87,33 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
 
     for (const file of req.files) {
       try {
+        // Debug: Log file object to see what Cloudinary provides
+        console.log('📦 File object:', {
+          filename: file.filename,
+          path: file.path,
+          url: file.url,
+          secure_url: file.secure_url,
+          fieldname: file.fieldname
+        });
+        
         // Get resume URL - handle both Cloudinary and local storage
         let resumeUrl;
-        if (file.path && file.path.startsWith('http')) {
-          // Cloudinary URL (full URL in file.path)
-          resumeUrl = file.path;
+        
+        // Cloudinary provides the URL in different properties depending on version
+        if (file.secure_url) {
+          // Cloudinary secure URL (HTTPS)
+          resumeUrl = file.secure_url;
         } else if (file.url) {
-          // Cloudinary URL (sometimes in file.url)
+          // Cloudinary URL
           resumeUrl = file.url;
-        } else {
+        } else if (file.path && file.path.startsWith('http')) {
+          // Cloudinary URL in path
+          resumeUrl = file.path;
+        } else if (file.filename) {
           // Local storage URL
           resumeUrl = `/uploads/${file.filename}`;
+        } else {
+          throw new Error('Could not determine file URL');
         }
         
         console.log(`📤 Uploading: ${file.originalname} → ${resumeUrl}`);
@@ -356,19 +372,19 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
     let resumeUrl = null;
     if (req.files['resume']) {
       const file = req.files['resume'][0];
-      resumeUrl = (file.path && file.path.startsWith('http')) ? file.path : `/uploads/${file.filename}`;
+      resumeUrl = file.secure_url || file.url || (file.path && file.path.startsWith('http') ? file.path : `/uploads/${file.filename}`);
     }
     
     let idProofUrl = null;
     if (req.files['id_proof']) {
       const file = req.files['id_proof'][0];
-      idProofUrl = (file.path && file.path.startsWith('http')) ? file.path : `/uploads/${file.filename}`;
+      idProofUrl = file.secure_url || file.url || (file.path && file.path.startsWith('http') ? file.path : `/uploads/${file.filename}`);
     }
     
     let editedResumeUrl = null;
     if (req.files['edited_resume']) {
       const file = req.files['edited_resume'][0];
-      editedResumeUrl = (file.path && file.path.startsWith('http')) ? file.path : `/uploads/${file.filename}`;
+      editedResumeUrl = file.secure_url || file.url || (file.path && file.path.startsWith('http') ? file.path : `/uploads/${file.filename}`);
     }
 
     // Skip parsing to prevent timeouts
