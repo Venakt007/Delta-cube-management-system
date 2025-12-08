@@ -78,12 +78,14 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, upload.array('resumes', 20
         // Try to parse resume (non-blocking)
         let parsedData = null;
         try {
-          // For Cloudinary, use the URL; for local, use the path
-          const parseSource = file.path && file.path.startsWith('http') ? file.path : file.path;
+          // For Cloudinary, use the URL; for local, use the file path
+          const parseSource = resumeUrl.startsWith('http') ? resumeUrl : file.path;
+          console.log(`🔍 Parsing from: ${parseSource}`);
           parsedData = await parseResume(parseSource);
           console.log(`✅ Parsed: ${file.originalname}`);
         } catch (parseError) {
-          console.log(`⚠️ Could not parse ${file.originalname}, saving with minimal data`);
+          console.log(`⚠️ Could not parse ${file.originalname}: ${parseError.message}`);
+          console.log(`⚠️ Saving with minimal data...`);
           // Continue anyway - file is uploaded, just not parsed
         }
 

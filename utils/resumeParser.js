@@ -2,18 +2,41 @@ const fs = require('fs');
 const pdf = require('pdf-parse');
 const mammoth = require('mammoth');
 const axios = require('axios');
+const path = require('path');
+const os = require('os');
 
-// Extract text from PDF
+// Extract text from PDF (handles both local files and URLs)
 async function extractTextFromPDF(filePath) {
-  const dataBuffer = fs.readFileSync(filePath);
+  let dataBuffer;
+  
+  // Check if it's a URL
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    console.log('📥 Downloading PDF from URL...');
+    const response = await axios.get(filePath, { responseType: 'arraybuffer' });
+    dataBuffer = Buffer.from(response.data);
+  } else {
+    // Local file
+    dataBuffer = fs.readFileSync(filePath);
+  }
+  
   const data = await pdf(dataBuffer);
   return data.text;
 }
 
-// Extract text from DOCX
+// Extract text from DOCX (handles both local files and URLs)
 async function extractTextFromDOCX(filePath) {
-  const result = await mammoth.extractRawText({ path: filePath });
-  return result.value;
+  // Check if it's a URL
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    console.log('📥 Downloading DOCX from URL...');
+    const response = await axios.get(filePath, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data);
+    const result = await mammoth.extractRawText({ buffer: buffer });
+    return result.value;
+  } else {
+    // Local file
+    const result = await mammoth.extractRawText({ path: filePath });
+    return result.value;
+  }
 }
 
 // Parse resume using OpenAI
