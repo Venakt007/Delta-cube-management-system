@@ -1,9 +1,22 @@
 const express = require('express');
 const pool = require('../config/db');
-// Use Cloudinary in production (Render), local storage in development
-const upload = process.env.NODE_ENV === 'production' && process.env.CLOUDINARY_CLOUD_NAME
-  ? require('../middleware/upload-cloudinary')
-  : require('../middleware/upload');
+
+// Try to use Cloudinary if credentials are available, otherwise use local storage
+let upload;
+try {
+  if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+    console.log('✅ Using Cloudinary for file uploads');
+    upload = require('../middleware/upload-cloudinary');
+  } else {
+    console.log('⚠️  Cloudinary credentials not found, using local storage');
+    upload = require('../middleware/upload');
+  }
+} catch (error) {
+  console.error('❌ Error loading upload middleware:', error.message);
+  console.log('⚠️  Falling back to local storage');
+  upload = require('../middleware/upload');
+}
+
 const { parseResume } = require('../utils/resumeParser');
 const { auth, isRecruiterOrAdmin } = require('../middleware/auth');
 
