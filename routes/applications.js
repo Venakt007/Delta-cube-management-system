@@ -60,34 +60,65 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, upload.array('resumes', 20
 
     for (const file of req.files) {
       try {
-        const resumeUrl = `/uploads/${file.filename}`;
-        const parsedData = await parseResume(file.path);
-
-        if (parsedData) {
-          const result = await pool.query(
-            `INSERT INTO applications 
-            (name, email, phone, location, experience_years, resume_url, source, uploaded_by, parsed_data, primary_skill, technology)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING id`,
-            [
-              parsedData.name || 'Unknown',
-              parsedData.email || '',
-              parsedData.phone || '',
-              parsedData.location || '',
-              parsedData.experience_years || 0,
-              resumeUrl,
-              'dashboard',
-              req.user.id,
-              parsedData,
-              parsedData.skills?.[0] || '',
-              ''
-            ]
-          );
-          uploadedResumes.push({ id: result.rows[0].id, filename: file.originalname });
+        // Get resume URL - handle both Cloudinary and local storage
+        let resumeUrl;
+        if (file.path && file.path.startsWith('http')) {
+          // Cloudinary URL (full URL in file.path)
+          resumeUrl = file.path;
+        } else if (file.url) {
+          // Cloudinary URL (sometimes in file.url)
+          resumeUrl = file.url;
         } else {
-          errors.push({ filename: file.originalname, error: 'Failed to parse resume' });
+          // Local storage URL
+          resumeUrl = `/uploads/${file.filename}`;
         }
+        
+        console.log(`📤 Uploading: ${file.originalname} → ${resumeUrl}`);
+        
+        // Try to parse resume (non-blocking)
+        let parsedData = null;
+        try {
+          // For Cloudinary, use the URL; for local, use the path
+          const parseSource = file.path && file.path.startsWith('http') ? file.path : file.path;
+          parsedData = await parseResume(parseSource);
+          console.log(`✅ Parsed: ${file.originalname}`);
+        } catch (parseError) {
+          console.log(`⚠️ Could not parse ${file.originalname}, saving with minimal data`);
+          // Continue anyway - file is uploaded, just not parsed
+        }
+
+        // Save to database even if parsing failed
+        const result = await pool.query(
+          `INSERT INTO applications 
+          (name, email, phone, location, experience_years, resume_url, source, uploaded_by, parsed_data, primary_skill, technology)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING id`,
+          [
+            parsedData?.name || file.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),  // Clean filename as name
+            parsedData?.email || '',
+            parsedData?.phone || '',
+            parsedData?.location || '',
+            parsedData?.experience_years || 0,
+            resumeUrl,
+            'dashboard',
+            req.user.id,
+            parsedData,
+            parsedData?.skills?.[0] || '',
+            ''
+          ]
+        );
+        
+        uploadedResumes.push({ 
+          id: result.rows[0].id, 
+          filename: file.originalname,
+          parsed: !!parsedData,
+          url: resumeUrl
+        });
+        
+        console.log(`✅ Saved to database: ${file.originalname} (ID: ${result.rows[0].id})`);
+        
       } catch (error) {
+        console.error(`❌ Error uploading ${file.originalname}:`, error);
         errors.push({ filename: file.originalname, error: error.message });
       }
     }
