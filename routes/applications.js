@@ -75,21 +75,11 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, upload.array('resumes', 20
         
         console.log(`📤 Uploading: ${file.originalname} → ${resumeUrl}`);
         
-        // Try to parse resume (non-blocking)
+        // Skip parsing for now to prevent timeouts - just save the file
         let parsedData = null;
-        try {
-          // For Cloudinary, use the URL; for local, use the file path
-          const parseSource = resumeUrl.startsWith('http') ? resumeUrl : file.path;
-          console.log(`🔍 Parsing from: ${parseSource}`);
-          parsedData = await parseResume(parseSource);
-          console.log(`✅ Parsed: ${file.originalname}`);
-        } catch (parseError) {
-          console.log(`⚠️ Could not parse ${file.originalname}: ${parseError.message}`);
-          console.log(`⚠️ Saving with minimal data...`);
-          // Continue anyway - file is uploaded, just not parsed
-        }
+        console.log(`⚠️ Skipping parsing to prevent timeout - saving file only`);
 
-        // Save to database even if parsing failed
+        // Save to database
         const result = await pool.query(
           `INSERT INTO applications 
           (name, email, phone, location, experience_years, resume_url, source, uploaded_by, parsed_data, primary_skill, technology)
@@ -335,15 +325,27 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
       return res.status(400).json({ error: 'Name and email are required' });
     }
     
-    const resumeUrl = req.files['resume'] ? `/uploads/${req.files['resume'][0].filename}` : null;
-    const idProofUrl = req.files['id_proof'] ? `/uploads/${req.files['id_proof'][0].filename}` : null;
-    const editedResumeUrl = req.files['edited_resume'] ? `/uploads/${req.files['edited_resume'][0].filename}` : null;
-
-    // Parse resume if uploaded
-    let parsedData = null;
+    // Get file URLs - handle both Cloudinary and local storage
+    let resumeUrl = null;
     if (req.files['resume']) {
-      parsedData = await parseResume(req.files['resume'][0].path);
+      const file = req.files['resume'][0];
+      resumeUrl = (file.path && file.path.startsWith('http')) ? file.path : `/uploads/${file.filename}`;
     }
+    
+    let idProofUrl = null;
+    if (req.files['id_proof']) {
+      const file = req.files['id_proof'][0];
+      idProofUrl = (file.path && file.path.startsWith('http')) ? file.path : `/uploads/${file.filename}`;
+    }
+    
+    let editedResumeUrl = null;
+    if (req.files['edited_resume']) {
+      const file = req.files['edited_resume'][0];
+      editedResumeUrl = (file.path && file.path.startsWith('http')) ? file.path : `/uploads/${file.filename}`;
+    }
+
+    // Skip parsing to prevent timeouts
+    let parsedData = null;
 
     if (action === 'update' && existing_id) {
       // Update existing profile
