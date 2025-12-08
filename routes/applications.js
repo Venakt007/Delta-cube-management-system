@@ -1,6 +1,9 @@
 const express = require('express');
 const pool = require('../config/db');
-const upload = require('../middleware/upload');
+// Use Cloudinary in production (Render), local storage in development
+const upload = process.env.NODE_ENV === 'production' && process.env.CLOUDINARY_CLOUD_NAME
+  ? require('../middleware/upload-cloudinary')
+  : require('../middleware/upload');
 const { parseResume } = require('../utils/resumeParser');
 const { auth, isRecruiterOrAdmin } = require('../middleware/auth');
 
