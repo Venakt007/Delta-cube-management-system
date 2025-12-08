@@ -66,8 +66,18 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
   
-  // Production: Serve React build static files (CSS, JS, etc.)
-  app.use(express.static(path.join(__dirname, 'client/build')));
+  // Production: Serve React build static files (CSS, JS, etc.) - but NOT index.html
+  app.use(express.static(path.join(__dirname, 'client/build'), {
+    index: false  // Don't serve index.html automatically
+  }));
+  
+  // Catch-all for any other routes - serve React app
+  app.get('*', (req, res) => {
+    // Only serve React app for specific paths, not root
+    if (req.path !== '/' && req.path !== '/landing.html') {
+      res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+    }
+  });
 } else {
   // Development mode: Proxy to React dev server
   console.log('Development mode: React app should be running on port 3000');
