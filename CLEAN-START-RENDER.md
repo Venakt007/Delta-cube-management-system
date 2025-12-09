@@ -23,7 +23,7 @@ Remove all old resumes from the database and start uploading fresh with Cloudina
 
 ```bash
 # Backup to CSV file
-psql $DATABASE_URL -c "\COPY applications TO '/tmp/applications_backup.csv' CSV HEADER;"
+psql $DATABASE_URL -c "\COPY applications TO '/tmp/applications_backup.csv' CSV /HEADER;"
 
 # Or just count what you have
 psql $DATABASE_URL -c "SELECT COUNT(*) FROM applications;"
