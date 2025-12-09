@@ -317,70 +317,110 @@ function parseResumeBasic(text) {
     summary: ''
   };
 
-  // Extract email - try multiple patterns
-  const emailPatterns = [
-    /[\w.-]+@[\w.-]+\.\w+/,
-    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
-    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
-  ];
+  // Extract email - strict validation with proper format
+  const emailPattern = /\b[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}\b/g;
+  const emailMatches = text.match(emailPattern);
   
-  for (const pattern of emailPatterns) {
-    const emailMatch = text.match(pattern);
-    if (emailMatch) {
-      parsed.email = emailMatch[0];
-      console.log(`   ✓ Found email: ${parsed.email}`);
-      break;
+  if (emailMatches && emailMatches.length > 0) {
+    // Validate email format more strictly
+    for (const email of emailMatches) {
+      // Must have @ and . in correct positions
+      if (email.includes('@') && email.includes('.')) {
+        const parts = email.split('@');
+        if (parts.length === 2 && parts[1].includes('.')) {
+          const domain = parts[1].split('.');
+          // Domain must have at least 2 parts and TLD must be 2+ chars
+          if (domain.length >= 2 && domain[domain.length - 1].length >= 2) {
+            parsed.email = email.toLowerCase();
+            console.log(`   ✓ Found email: ${parsed.email}`);
+            break;
+          }
+        }
+      }
     }
   }
   
   if (!parsed.email) {
-    console.log('   ✗ No email found');
+    console.log('   ✗ No valid email found');
   }
 
-  // Extract phone - try multiple patterns (Indian and international)
+  // Extract phone - strict 10-digit validation
   const phonePatterns = [
-    /[\+]?91[-\s]?[6-9]\d{9}/,  // Indian mobile with +91
-    /[6-9]\d{9}/,  // Indian mobile without country code
-    /[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}/,  // General international
-    /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/  // US format
+    /\+91[-\s]?[6-9]\d{9}\b/,  // Indian mobile with +91 (10 digits)
+    /\b[6-9]\d{9}\b/,  // Indian mobile without country code (exactly 10 digits)
+    /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/  // US format (10 digits)
   ];
   
   for (const pattern of phonePatterns) {
     const phoneMatch = text.match(pattern);
     if (phoneMatch) {
-      parsed.phone = phoneMatch[0].trim();
-      console.log(`   ✓ Found phone: ${parsed.phone}`);
-      break;
+      const phone = phoneMatch[0].trim();
+      // Extract only digits to validate length
+      const digits = phone.replace(/\D/g, '');
+      // Must be exactly 10 digits (or 12 with +91)
+      if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
+        parsed.phone = phone;
+        console.log(`   ✓ Found phone: ${parsed.phone} (${digits.length} digits)`);
+        break;
+      }
     }
   }
   
   if (!parsed.phone) {
-    console.log('   ✗ No phone found');
+    console.log('   ✗ No valid 10-digit phone found');
   }
 
-  // Extract name (first non-empty line that's not too long and doesn't have @ or numbers)
+  // Extract name - must make sense (2-4 words, mostly letters)
   const lines = text.split('\n').filter(line => line.trim());
-  for (const line of lines.slice(0, 10)) {  // Check first 10 lines instead of 5
+  for (const line of lines.slice(0, 10)) {
     const trimmed = line.trim();
-    // Name should be 3-60 chars, no email, no phone numbers, mostly letters
-    if (trimmed.length > 3 && 
-        trimmed.length < 60 && 
+    
+    // Name validation rules:
+    // 1. Length: 3-60 characters
+    // 2. No email symbols (@)
+    // 3. No phone numbers (3+ consecutive digits)
+    // 4. Must have letters
+    // 5. Should be 1-4 words (most names are 2-3 words)
+    // 6. Each word should start with capital letter
+    
+    if (trimmed.length >= 3 && 
+        trimmed.length <= 60 && 
         !trimmed.includes('@') && 
-        !trimmed.match(/\d{3,}/) &&  // No 3+ consecutive digits
-        trimmed.match(/[a-zA-Z]/)) {  // Must have letters
-      parsed.name = trimmed;
-      break;
+        !trimmed.match(/\d{3,}/)) {  // No 3+ consecutive digits
+      
+      const words = trimmed.split(/\s+/);
+      
+      // Name should be 1-4 words
+      if (words.length >= 1 && words.length <= 4) {
+        // Each word should be mostly letters and start with capital
+        const validWords = words.every(word => {
+          return word.length >= 2 && 
+                 /^[A-Z]/.test(word) &&  // Starts with capital
+                 /^[A-Za-z]+$/.test(word);  // Only letters
+        });
+        
+        if (validWords) {
+          parsed.name = trimmed;
+          console.log(`   ✓ Found name: ${parsed.name}`);
+          break;
+        }
+      }
     }
   }
   
   // If still no name, try to extract from email
   if (parsed.name === 'Unknown' && parsed.email) {
     const emailName = parsed.email.split('@')[0];
-    parsed.name = emailName.replace(/[._-]/g, ' ').replace(/\d+/g, '').trim();
+    const cleanName = emailName.replace(/[._-]/g, ' ').replace(/\d+/g, '').trim();
     // Capitalize first letter of each word
-    parsed.name = parsed.name.split(' ').map(word => 
+    parsed.name = cleanName.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
+    console.log(`   ✓ Extracted name from email: ${parsed.name}`);
+  }
+  
+  if (parsed.name === 'Unknown') {
+    console.log('   ✗ No valid name found');
   }
 
   // Extract skills (common tech keywords)
