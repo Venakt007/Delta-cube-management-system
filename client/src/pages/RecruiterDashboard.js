@@ -917,20 +917,16 @@ function RecruiterDashboard() {
                           <td className="px-4 py-2 whitespace-nowrap">{resume.email || '-'}</td>
                           <td className="px-4 py-2 whitespace-nowrap">{resume.phone || '-'}</td>
                           <td className="px-4 py-2">
-                            <div className="space-y-1">
+                            <div className="flex flex-wrap gap-1">
                               {resume.primary_skill && (
-                                <div className="text-sm">
-                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                    {resume.primary_skill.length > 30 ? resume.primary_skill.substring(0, 30) + '...' : resume.primary_skill}
-                                  </span>
-                                </div>
+                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs whitespace-nowrap">
+                                  {resume.primary_skill.length > 15 ? resume.primary_skill.substring(0, 15) + '...' : resume.primary_skill}
+                                </span>
                               )}
                               {resume.secondary_skill && (
-                                <div className="text-sm">
-                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                                    {resume.secondary_skill.length > 30 ? resume.secondary_skill.substring(0, 30) + '...' : resume.secondary_skill}
-                                  </span>
-                                </div>
+                                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs whitespace-nowrap">
+                                  {resume.secondary_skill.length > 15 ? resume.secondary_skill.substring(0, 15) + '...' : resume.secondary_skill}
+                                </span>
                               )}
                               {!resume.primary_skill && !resume.secondary_skill && (
                                 <span className="text-gray-400 text-xs">No skills</span>
@@ -1122,20 +1118,16 @@ function RecruiterDashboard() {
                         <td className="px-4 py-2 whitespace-nowrap">{resume.email || '-'}</td>
                         <td className="px-4 py-2 whitespace-nowrap">{resume.phone || '-'}</td>
                         <td className="px-4 py-2">
-                          <div className="space-y-1">
+                          <div className="flex flex-wrap gap-1">
                             {resume.primary_skill && (
-                              <div className="text-sm">
-                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                  {resume.primary_skill.length > 30 ? resume.primary_skill.substring(0, 30) + '...' : resume.primary_skill}
-                                </span>
-                              </div>
+                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs whitespace-nowrap">
+                                {resume.primary_skill.length > 15 ? resume.primary_skill.substring(0, 15) + '...' : resume.primary_skill}
+                              </span>
                             )}
                             {resume.secondary_skill && (
-                              <div className="text-sm">
-                                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                                  {resume.secondary_skill.length > 30 ? resume.secondary_skill.substring(0, 30) + '...' : resume.secondary_skill}
-                                </span>
-                              </div>
+                              <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs whitespace-nowrap">
+                                {resume.secondary_skill.length > 15 ? resume.secondary_skill.substring(0, 15) + '...' : resume.secondary_skill}
+                              </span>
                             )}
                             {!resume.primary_skill && !resume.secondary_skill && (
                               <span className="text-gray-400 text-xs">No skills</span>
