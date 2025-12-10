@@ -347,4 +347,25 @@ router.get('/stats', auth, isAdmin, async (req, res) => {
   }
 });
 
+// Get resumes assigned to this admin
+router.get('/assigned-resumes', auth, isAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT a.*, u.name as uploader_name, u.email as uploader_email
+       FROM applications a
+       LEFT JOIN users u ON a.uploaded_by = u.id
+       WHERE a.assigned_to = $1
+       ORDER BY a.assigned_at DESC, a.created_at DESC`,
+      [req.user.id]
+    );
+
+    console.log(`📋 Admin ${req.user.id} fetched ${result.rows.length} assigned resumes`);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Error fetching assigned resumes:', error);
+    res.status(500).json({ error: 'Failed to fetch assigned resumes' });
+  }
+});
+
 module.exports = router;

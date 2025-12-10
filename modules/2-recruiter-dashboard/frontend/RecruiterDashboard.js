@@ -8,6 +8,8 @@ function RecruiterDashboard() {
   const [loading, setLoading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [adminsList, setAdminsList] = useState([]);
+  const [assigningResume, setAssigningResume] = useState({});
   
   // Manual entry form state
   const [formData, setFormData] = useState({
@@ -37,6 +39,7 @@ function RecruiterDashboard() {
 
   useEffect(() => {
     fetchResumes();
+    fetchAdminsList();
   }, []);
 
   const fetchResumes = async () => {
@@ -47,6 +50,17 @@ function RecruiterDashboard() {
       setResumes(response.data);
     } catch (error) {
       console.error('Failed to fetch resumes');
+    }
+  };
+
+  const fetchAdminsList = async () => {
+    try {
+      const response = await axios.get('/api/applications/admins-list', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminsList(response.data);
+    } catch (error) {
+      console.error('Failed to fetch admins list');
     }
   };
 
@@ -100,8 +114,47 @@ function RecruiterDashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResumes(response.data);
+      
+      // Show message if no results found
+      if (response.data.length === 0) {
+        setUploadMessage(`❌ No resumes found with skill: "${searchTerm}"`);
+        setTimeout(() => setUploadMessage(''), 5000);
+      }
     } catch (error) {
       console.error('Search failed');
+      setUploadMessage('❌ Search failed. Please try again.');
+      setTimeout(() => setUploadMessage(''), 3000);
+    }
+  };
+
+  const handleAssignToAdmin = async (resumeId, adminId) => {
+    setAssigningResume({ ...assigningResume, [resumeId]: true });
+    try {
+      await axios.patch(`/api/applications/resumes/${resumeId}/assign`, 
+        { adminId: adminId || null },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Update local state
+      setResumes(resumes.map(r => {
+        if (r.id === resumeId) {
+          const admin = adminsList.find(a => a.id === parseInt(adminId));
+          return { 
+            ...r, 
+            assigned_to: adminId || null,
+            assigned_to_name: admin ? admin.name : null,
+            assigned_at: adminId ? new Date() : null
+          };
+        }
+        return r;
+      }));
+      
+      alert(adminId ? 'Resume assigned successfully!' : 'Assignment removed!');
+    } catch (error) {
+      console.error('Failed to assign resume:', error);
+      alert('Failed to assign resume. Please try again.');
+    } finally {
+      setAssigningResume({ ...assigningResume, [resumeId]: false });
     }
   };
 
@@ -780,6 +833,12 @@ function RecruiterDashboard() {
             {/* Resumes Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <h2 className="text-xl font-semibold p-6 border-b">My Uploaded Resumes ({resumes.length})</h2>
+              {resumes.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <p className="text-lg">📭 No resumes found</p>
+                  <p className="text-sm mt-2">Upload resumes or use manual entry to get started</p>
+                </div>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
@@ -791,6 +850,7 @@ function RecruiterDashboard() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Experience</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status & Placement</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned To</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
@@ -851,6 +911,28 @@ function RecruiterDashboard() {
                               </select>
                             </div>
                           </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-2">
+                              <select
+                                value={resume.assigned_to || ''}
+                                onChange={(e) => handleAssignToAdmin(resume.id, e.target.value)}
+                                disabled={assigningResume[resume.id]}
+                                className="text-sm border border-gray-300 rounded px-2 py-1 bg-purple-50"
+                              >
+                                <option value="">-- Assign to Admin --</option>
+                                {adminsList.map(admin => (
+                                  <option key={admin.id} value={admin.id}>
+                                    {admin.name} ({admin.role})
+                                  </option>
+                                ))}
+                              </select>
+                              {resume.assigned_to && (
+                                <div className="text-xs text-purple-700 bg-purple-100 px-2 py-1 rounded">
+                                  ✅ Assigned to: {resume.assigned_to_name}
+                                </div>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex gap-3 items-center">
                               <button
@@ -886,6 +968,7 @@ function RecruiterDashboard() {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           </div>
         )}

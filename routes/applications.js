@@ -203,10 +203,15 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
 router.get('/my-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, phone, linkedin, technology, primary_skill, secondary_skill, experience_years, location, job_types, resume_url, id_proof_url, created_at, parsed_data, recruitment_status, placement_status, referral_source
-      FROM applications 
-      WHERE uploaded_by = $1 AND source = 'dashboard'
-      ORDER BY created_at DESC`,
+      `SELECT a.id, a.name, a.email, a.phone, a.linkedin, a.technology, a.primary_skill, a.secondary_skill, 
+              a.experience_years, a.location, a.job_types, a.resume_url, a.id_proof_url, a.created_at, 
+              a.parsed_data, a.recruitment_status, a.placement_status, a.referral_source, 
+              a.assigned_to, a.assigned_at,
+              u.name as assigned_to_name, u.email as assigned_to_email
+      FROM applications a
+      LEFT JOIN users u ON a.assigned_to = u.id
+      WHERE a.uploaded_by = $1 AND a.source = 'dashboard'
+      ORDER BY a.created_at DESC`,
       [req.user.id]
     );
 
@@ -271,31 +276,37 @@ router.get('/my-resumes/search', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
     const { skill, experience_min, experience_max } = req.query;
     
-    let query = 'SELECT * FROM applications WHERE uploaded_by = $1';
+    let query = `SELECT a.*, u.name as assigned_to_name, u.email as assigned_to_email
+                 FROM applications a
+                 LEFT JOIN users u ON a.assigned_to = u.id
+                 WHERE a.uploaded_by = $1 AND a.source = 'dashboard'`;
     const params = [req.user.id];
     let paramCount = 1;
 
     if (skill) {
       paramCount++;
-      query += ` AND (primary_skill ILIKE $${paramCount} OR secondary_skill ILIKE $${paramCount} OR parsed_data::text ILIKE $${paramCount})`;
+      query += ` AND (a.primary_skill ILIKE $${paramCount} OR a.secondary_skill ILIKE $${paramCount} OR a.parsed_data::text ILIKE $${paramCount})`;
       params.push(`%${skill}%`);
     }
 
     if (experience_min) {
       paramCount++;
-      query += ` AND experience_years >= $${paramCount}`;
+      query += ` AND a.experience_years >= $${paramCount}`;
       params.push(experience_min);
     }
 
     if (experience_max) {
       paramCount++;
-      query += ` AND experience_years <= $${paramCount}`;
+      query += ` AND a.experience_years <= $${paramCount}`;
       params.push(experience_max);
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY a.created_at DESC';
 
     const result = await pool.query(query, params);
+    
+    console.log(`🔍 Search by ${req.user.name}: skill="${skill || 'any'}", found ${result.rows.length} resumes`);
+    
     res.json(result.rows);
   } catch (error) {
     console.error(error);
@@ -483,11 +494,13 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
   }
 });
 
-// Update recruitment status (Recruiter can update their own resumes)
+// Update recruitment status (Recruiter can update their own resumes, Admin/Super Admin can update any)
 router.patch('/resumes/:id/status', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, statusType = 'recruitment' } = req.body;
+
+    console.log(`📝 Status update request: Resume ${id}, Status: ${status}, Type: ${statusType}, User: ${req.user.id} (${req.user.role})`);
 
     const validRecruitmentStatuses = ['Pending', 'On Hold', 'Profile Not Found', 'Rejected', 'Submitted', 'Interview scheduled', 'Closed'];
     const validPlacementStatuses = ['Bench', 'Onboarded', ''];
@@ -502,25 +515,27 @@ router.patch('/resumes/:id/status', auth, isRecruiterOrAdmin, async (req, res) =
       }
     }
 
-    // Verify the resume belongs to this recruiter (or is admin)
-    const checkResult = await pool.query(
-      'SELECT id FROM applications WHERE id = $1 AND uploaded_by = $2',
-      [id, req.user.id]
-    );
+    // Verify permissions: recruiter can update own resumes, admin/super_admin can update any
+    if (req.user.role === 'recruiter') {
+      const checkResult = await pool.query(
+        'SELECT id FROM applications WHERE id = $1 AND uploaded_by = $2',
+        [id, req.user.id]
+      );
 
-    if (checkResult.rows.length === 0 && req.user.role !== 'admin') {
-      return res.status(404).json({ error: 'Resume not found or you do not have permission' });
+      if (checkResult.rows.length === 0) {
+        return res.status(403).json({ error: 'You can only update your own resumes' });
+      }
     }
 
     let result;
     if (statusType === 'placement') {
       result = await pool.query(
-        'UPDATE applications SET placement_status = $1 WHERE id = $2 RETURNING id, recruitment_status, placement_status',
+        'UPDATE applications SET placement_status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, recruitment_status, placement_status',
         [status || null, id]
       );
     } else {
       result = await pool.query(
-        'UPDATE applications SET recruitment_status = $1 WHERE id = $2 RETURNING id, recruitment_status, placement_status',
+        'UPDATE applications SET recruitment_status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, recruitment_status, placement_status',
         [status, id]
       );
     }
@@ -536,8 +551,8 @@ router.patch('/resumes/:id/status', auth, isRecruiterOrAdmin, async (req, res) =
       resume: result.rows[0]
     });
   } catch (error) {
-    console.error('Status update error:', error);
-    res.status(500).json({ error: 'Failed to update status' });
+    console.error('❌ Status update error:', error);
+    res.status(500).json({ error: 'Failed to update status: ' + error.message });
   }
 });
 
@@ -614,6 +629,80 @@ router.post('/bulk-delete', auth, isRecruiterOrAdmin, async (req, res) => {
   } catch (error) {
     console.error('Bulk delete error:', error);
     res.status(500).json({ error: 'Failed to delete resumes' });
+  }
+});
+
+// Get list of admins for assignment
+router.get('/admins-list', auth, isRecruiterOrAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, email, role 
+       FROM users 
+       WHERE role IN ('admin', 'super_admin') 
+       ORDER BY name ASC`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Failed to fetch admins:', error);
+    res.status(500).json({ error: 'Failed to fetch admins list' });
+  }
+});
+
+// Assign resume to admin
+router.patch('/resumes/:id/assign', auth, isRecruiterOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminId } = req.body;
+
+    console.log(`📌 Assignment request: Resume ${id} → Admin ${adminId} by User ${req.user.id}`);
+
+    // Verify the resume belongs to this recruiter (or user is admin)
+    if (req.user.role === 'recruiter') {
+      const checkResult = await pool.query(
+        'SELECT id FROM applications WHERE id = $1 AND uploaded_by = $2',
+        [id, req.user.id]
+      );
+
+      if (checkResult.rows.length === 0) {
+        return res.status(403).json({ error: 'You can only assign your own resumes' });
+      }
+    }
+
+    // Verify the admin exists
+    if (adminId) {
+      const adminCheck = await pool.query(
+        'SELECT id, name FROM users WHERE id = $1 AND role IN ($2, $3)',
+        [adminId, 'admin', 'super_admin']
+      );
+
+      if (adminCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Admin not found' });
+      }
+    }
+
+    // Update assignment
+    const result = await pool.query(
+      `UPDATE applications 
+       SET assigned_to = $1, assigned_at = $2, updated_at = NOW() 
+       WHERE id = $3 
+       RETURNING id, assigned_to, assigned_at`,
+      [adminId || null, adminId ? new Date() : null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+
+    console.log(`✅ Resume ${id} assigned to admin ${adminId}`);
+
+    res.json({ 
+      message: adminId ? 'Resume assigned successfully' : 'Assignment removed',
+      resume: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Assignment error:', error);
+    res.status(500).json({ error: 'Failed to assign resume: ' + error.message });
   }
 });
 

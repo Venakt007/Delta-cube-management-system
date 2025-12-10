@@ -300,11 +300,21 @@ function matchCandidateToJD(candidate, jdText) {
   
   // Calculate overall match percentage (weighted)
   // Skills: 70%, Experience: 30%
-  const overallScore = Math.round(
-    (skillMatch.score * 0.7) + (experienceMatch.score * 0.3)
-  );
+  // BUT: If no skills match at all (0%), return 0% overall (don't give credit for experience alone)
+  let overallScore;
   
-  console.log(`Overall Score: ${overallScore}% (${skillMatch.score}% × 0.7 + ${experienceMatch.score}% × 0.3)`);
+  if (skillMatch.score === 0) {
+    // No skills match = 0% overall, regardless of experience
+    overallScore = 0;
+    console.log(`Overall Score: 0% (No skills match - experience doesn't count)`);
+  } else {
+    // Skills match, calculate weighted score
+    overallScore = Math.round(
+      (skillMatch.score * 0.7) + (experienceMatch.score * 0.3)
+    );
+    console.log(`Overall Score: ${overallScore}% (${skillMatch.score}% × 0.7 + ${experienceMatch.score}% × 0.3)`);
+  }
+  
   console.log(`=== End Match ===\n`);
   
   return {
