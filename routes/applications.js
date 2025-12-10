@@ -265,31 +265,52 @@ router.get('/social-media-resumes', auth, isRecruiterOrAdmin, async (req, res) =
 router.post('/jd-match-social', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
     const { jobDescription } = req.body;
+    
+    if (!jobDescription || jobDescription.trim() === '') {
+      return res.status(400).json({ error: 'Job description is required' });
+    }
+    
+    console.log('🔍 JD Matching (Social) - Starting...');
+    console.log('   JD Length:', jobDescription.length, 'characters');
+    
     const { matchCandidateToJD } = require('../utils/jd-matcher');
 
     // Get social media resumes only
     const resumes = await pool.query(
       `SELECT * FROM applications WHERE source = 'html_form' ORDER BY created_at DESC`
     );
+    
+    console.log('   Found', resumes.rows.length, 'social media resumes');
 
     // Use advanced matching algorithm
     const matches = resumes.rows.map(resume => {
-      const matchResult = matchCandidateToJD(resume, jobDescription);
-      return {
-        ...resume,
-        ...matchResult
-      };
+      try {
+        const matchResult = matchCandidateToJD(resume, jobDescription);
+        return {
+          ...resume,
+          ...matchResult
+        };
+      } catch (matchError) {
+        console.error(`   ❌ Error matching resume ${resume.id}:`, matchError.message);
+        return {
+          ...resume,
+          matchPercentage: 0,
+          error: matchError.message
+        };
+      }
     });
 
     // Sort by match percentage and filter > 0
     const sortedMatches = matches
       .filter(m => m.matchPercentage > 0)
       .sort((a, b) => b.matchPercentage - a.matchPercentage);
+    
+    console.log('   ✅ Matches found:', sortedMatches.length);
 
     res.json({ matches: sortedMatches });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'JD matching failed' });
+    console.error('❌ JD matching failed:', error);
+    res.status(500).json({ error: 'JD matching failed: ' + error.message });
   }
 });
 

@@ -265,69 +265,101 @@ function calculateExperienceMatch(candidateYears, requirement) {
 
 // Main matching function
 function matchCandidateToJD(candidate, jdText) {
-  // Extract requirements from JD
-  const requiredSkills = extractSkills(jdText);
-  const experienceReq = extractExperienceRequirement(jdText);
-  
-  // Get candidate skills from multiple sources
-  const candidateSkills = [
-    ...(candidate.parsed_data?.skills || []),
-    candidate.primary_skill,
-    candidate.secondary_skill,
-    candidate.technology
-  ].filter(Boolean);
-  
-  // Debug logging
-  console.log(`\n=== Matching ${candidate.name} ===`);
-  console.log(`JD Required Skills (${requiredSkills.length}):`, requiredSkills);
-  console.log(`Candidate Skills (${candidateSkills.length}):`, candidateSkills);
-  
-  // Calculate skill match
-  const skillMatch = calculateSkillMatch(candidateSkills, requiredSkills);
-  
-  console.log(`Matching Skills (${skillMatch.matchingSkills.length}):`, skillMatch.matchingSkills);
-  console.log(`Missing Skills (${skillMatch.missingSkills.length}):`, skillMatch.missingSkills);
-  console.log(`Skill Score: ${skillMatch.score}%`);
-  
-  // Calculate experience match
-  const experienceMatch = calculateExperienceMatch(
-    candidate.experience_years,
-    experienceReq
-  );
-  
-  console.log(`Experience: ${candidate.experience_years} years (Required: ${JSON.stringify(experienceReq)})`);
-  console.log(`Experience Score: ${experienceMatch.score}%`);
-  
-  // Calculate overall match percentage (weighted)
-  // Skills: 70%, Experience: 30%
-  // BUT: If no skills match at all (0%), return 0% overall (don't give credit for experience alone)
-  let overallScore;
-  
-  if (skillMatch.score === 0) {
-    // No skills match = 0% overall, regardless of experience
-    overallScore = 0;
-    console.log(`Overall Score: 0% (No skills match - experience doesn't count)`);
-  } else {
-    // Skills match, calculate weighted score
-    overallScore = Math.round(
-      (skillMatch.score * 0.7) + (experienceMatch.score * 0.3)
+  try {
+    // Validate inputs
+    if (!candidate) {
+      throw new Error('Candidate is required');
+    }
+    if (!jdText || typeof jdText !== 'string') {
+      throw new Error('Job description must be a non-empty string');
+    }
+    
+    // Extract requirements from JD
+    const requiredSkills = extractSkills(jdText);
+    const experienceReq = extractExperienceRequirement(jdText);
+    
+    // Get candidate skills from multiple sources
+    const candidateSkills = [
+      ...(candidate.parsed_data?.skills || []),
+      candidate.primary_skill,
+      candidate.secondary_skill,
+      candidate.technology
+    ].filter(Boolean);
+    
+    // Debug logging (only in development)
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) {
+      console.log(`\n=== Matching ${candidate.name} ===`);
+      console.log(`JD Required Skills (${requiredSkills.length}):`, requiredSkills.slice(0, 5));
+      console.log(`Candidate Skills (${candidateSkills.length}):`, candidateSkills.slice(0, 5));
+    }
+    
+    // Calculate skill match
+    const skillMatch = calculateSkillMatch(candidateSkills, requiredSkills);
+    
+    if (isDev) {
+      console.log(`Matching Skills (${skillMatch.matchingSkills.length}):`, skillMatch.matchingSkills);
+      console.log(`Skill Score: ${skillMatch.score}%`);
+    }
+    
+    // Calculate experience match
+    const experienceMatch = calculateExperienceMatch(
+      candidate.experience_years,
+      experienceReq
     );
-    console.log(`Overall Score: ${overallScore}% (${skillMatch.score}% × 0.7 + ${experienceMatch.score}% × 0.3)`);
+    
+    if (isDev) {
+      console.log(`Experience: ${candidate.experience_years} years`);
+      console.log(`Experience Score: ${experienceMatch.score}%`);
+    }
+    
+    // Calculate overall match percentage (weighted)
+    // Skills: 70%, Experience: 30%
+    // BUT: If no skills match at all (0%), return 0% overall (don't give credit for experience alone)
+    let overallScore;
+    
+    if (skillMatch.score === 0) {
+      // No skills match = 0% overall, regardless of experience
+      overallScore = 0;
+    } else {
+      // Skills match, calculate weighted score
+      overallScore = Math.round(
+        (skillMatch.score * 0.7) + (experienceMatch.score * 0.3)
+      );
+    }
+    
+    if (isDev) {
+      console.log(`Overall Score: ${overallScore}%`);
+      console.log(`=== End Match ===\n`);
+    }
+    
+    return {
+      matchPercentage: overallScore,
+      skillScore: skillMatch.score,
+      experienceScore: experienceMatch.score,
+      matchingSkills: skillMatch.matchingSkills,
+      missingSkills: skillMatch.missingSkills,
+      requiredSkills: requiredSkills,
+      experienceRequirement: experienceReq,
+      experienceReason: experienceMatch.reason,
+      candidateExperience: candidate.experience_years
+    };
+  } catch (error) {
+    console.error(`❌ Error matching candidate ${candidate?.name || 'unknown'}:`, error.message);
+    // Return zero match on error instead of throwing
+    return {
+      matchPercentage: 0,
+      skillScore: 0,
+      experienceScore: 0,
+      matchingSkills: [],
+      missingSkills: [],
+      requiredSkills: [],
+      experienceRequirement: { min: 0, max: null, type: 'none' },
+      experienceReason: 'Error during matching',
+      candidateExperience: candidate?.experience_years || 0,
+      error: error.message
+    };
   }
-  
-  console.log(`=== End Match ===\n`);
-  
-  return {
-    matchPercentage: overallScore,
-    skillScore: skillMatch.score,
-    experienceScore: experienceMatch.score,
-    matchingSkills: skillMatch.matchingSkills,
-    missingSkills: skillMatch.missingSkills,
-    requiredSkills: requiredSkills,
-    experienceRequirement: experienceReq,
-    experienceReason: experienceMatch.reason,
-    candidateExperience: candidate.experience_years
-  };
 }
 
 module.exports = {

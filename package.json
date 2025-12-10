@@ -11,7 +11,7 @@
     "create-admin": "node scripts/createAdmin.js",
     "migrate": "node run-migration.js && node run-field-migration.js",
     "setup": "npm install && cd client && npm install && cd ..",
-    "dev-all": "concurrently \"npm run dev\" \"npm run client\"",
+    "dev-all": "npx concurrently \"npm run dev\" \"npm run client\"",
     "production": "npm run build && npm start"
   },
   "dependencies": {

@@ -97,6 +97,14 @@ router.get('/resumes/filter', auth, isAdmin, async (req, res) => {
 router.post('/jd-match', auth, isAdmin, async (req, res) => {
   try {
     const { jobDescription } = req.body;
+    
+    if (!jobDescription || jobDescription.trim() === '') {
+      return res.status(400).json({ error: 'Job description is required' });
+    }
+    
+    console.log('🔍 JD Matching (Admin) - Starting...');
+    console.log('   JD Length:', jobDescription.length, 'characters');
+    
     const { matchCandidateToJD } = require('../utils/jd-matcher');
 
     // Get all resumes - Exclude "Onboarded" placement status
@@ -106,25 +114,39 @@ router.post('/jd-match', auth, isAdmin, async (req, res) => {
        LEFT JOIN users u ON a.uploaded_by = u.id
        WHERE (a.placement_status IS NULL OR a.placement_status <> 'Onboarded')`
     );
+    
+    console.log('   Found', resumes.rows.length, 'resumes to match');
 
     // Use advanced matching algorithm
     const matches = resumes.rows.map(resume => {
-      const matchResult = matchCandidateToJD(resume, jobDescription);
-      return {
-        ...resume,
-        ...matchResult
-      };
+      try {
+        const matchResult = matchCandidateToJD(resume, jobDescription);
+        return {
+          ...resume,
+          ...matchResult
+        };
+      } catch (matchError) {
+        console.error(`   ❌ Error matching resume ${resume.id}:`, matchError.message);
+        return {
+          ...resume,
+          matchPercentage: 0,
+          error: matchError.message
+        };
+      }
     });
 
     // Sort by match percentage
     matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
+    
+    const filteredMatches = matches.filter(m => m.matchPercentage > 0);
+    console.log('   ✅ Matches found:', filteredMatches.length);
 
     res.json({
-      matches: matches.filter(m => m.matchPercentage > 0)
+      matches: filteredMatches
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'JD matching failed' });
+    console.error('❌ JD matching failed:', error);
+    res.status(500).json({ error: 'JD matching failed: ' + error.message });
   }
 });
 
