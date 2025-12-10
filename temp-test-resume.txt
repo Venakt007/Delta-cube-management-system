@@ -1,0 +1,3 @@
+Rahul Verma, rahul.v@email.com, 9988776655, Delhi
+Full Stack Developer, 4 years experience, JavaScript React Node.js MongoDB AWS Docker Git Python Django PostgreSQL HTML CSS Bootstrap Agile Scrum REST API Microservices
+B.Tech CSE from ABC College 2019

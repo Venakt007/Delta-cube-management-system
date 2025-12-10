@@ -132,9 +132,16 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
         let parsedData = null;
         try {
           console.log(`🔍 Attempting to parse: ${file.originalname}`);
+          console.log(`   File URL: ${resumeUrl}`);
+          console.log(`   File path: ${file.path}`);
+          
+          // For Cloudinary URLs, use the URL directly
+          // For local files, use the file path
+          const parseTarget = resumeUrl.startsWith('http') ? resumeUrl : file.path;
+          console.log(`   Parsing from: ${parseTarget}`);
           
           // Set a timeout for parsing (30 seconds max)
-          const parsePromise = parseResume(resumeUrl);
+          const parsePromise = parseResume(parseTarget);
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Parsing timeout')), 30000)
           );
@@ -144,21 +151,36 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
           if (parsedData) {
             console.log(`✅ Successfully parsed: ${file.originalname}`);
             console.log(`   Name: ${parsedData.name}, Email: ${parsedData.email}, Phone: ${parsedData.phone}`);
+            console.log(`   Skills: ${parsedData.skills?.slice(0, 3).join(', ')}...`);
+          } else {
+            console.log(`⚠️ Parser returned null for ${file.originalname}`);
           }
         } catch (parseError) {
           console.log(`⚠️ Parsing failed for ${file.originalname}: ${parseError.message}`);
+          console.log(`   Error stack: ${parseError.stack}`);
           console.log(`⚠️ Continuing with filename as name...`);
           // Continue anyway - file is uploaded, just not parsed
         }
 
         // Save to database (with or without parsed data)
+        // Create better fallback data if parsing failed
+        const cleanName = file.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        const finalName = parsedData?.name && parsedData.name !== 'Unknown' ? parsedData.name : cleanName;
+        const finalSkills = parsedData?.skills && parsedData.skills.length > 0 ? parsedData.skills : [];
+        
+        console.log(`💾 Saving to database:`);
+        console.log(`   Name: ${finalName}`);
+        console.log(`   Email: ${parsedData?.email || '(none)'}`);
+        console.log(`   Phone: ${parsedData?.phone || '(none)'}`);
+        console.log(`   Skills: ${finalSkills.slice(0, 3).join(', ') || '(none)'}`);
+        
         const result = await pool.query(
           `INSERT INTO applications 
           (name, email, phone, location, experience_years, resume_url, source, uploaded_by, parsed_data, primary_skill, technology)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING id`,
           [
-            parsedData?.name || file.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),  // Clean filename as name
+            finalName,
             parsedData?.email || '',
             parsedData?.phone || '',
             parsedData?.location || '',
@@ -166,8 +188,8 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
             resumeUrl,
             'dashboard',
             req.user.id,
-            parsedData,
-            parsedData?.skills?.[0] || '',
+            parsedData ? JSON.stringify(parsedData) : null,
+            finalSkills[0] || '',
             ''
           ]
         );
@@ -429,24 +451,22 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
 
     // Skip parsing to prevent timeouts
     let parsedData = null;
+    
+    // Always create parsed_data from manual entries to ensure skills are searchable
+    parsedData = {
+      name: name,
+      email: email,
+      phone: phone || '',
+      skills: primary_skill ? [primary_skill, ...(secondary_skill ? [secondary_skill] : [])] : [],
+      experience_years: sanitizedExperienceYears,
+      location: location || '',
+      tier: 'manual',
+      confidence: 'high'
+    };
 
     if (action === 'update' && existing_id) {
       // Update existing profile
       console.log('📝 Updating profile:', existing_id, 'by user:', req.user.id);
-      
-      // If no new resume uploaded, create parsed_data from manual entries
-      if (!parsedData) {
-        parsedData = {
-          name: name,
-          email: email,
-          phone: phone || '',
-          skills: primary_skill ? [primary_skill, ...(secondary_skill ? [secondary_skill] : [])] : [],
-          experience_years: sanitizedExperienceYears,
-          location: location || '',
-          tier: 'manual',
-          confidence: 'high'
-        };
-      }
       
       const result = await pool.query(
         `UPDATE applications 

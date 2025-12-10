@@ -1,0 +1,25 @@
+========================================
+COPY AND PASTE THIS IN RENDER SHELL
+========================================
+
+node migrations/add-assigned-to-field.js
+
+========================================
+HOW TO ACCESS RENDER SHELL:
+========================================
+
+1. Go to: https://dashboard.render.com
+2. Click your service name
+3. Click "Shell" tab at the top
+4. Paste the command above
+5. Press Enter
+6. Wait for "✅ Migration completed successfully!"
+
+========================================
+IF YOU SEE ERROR:
+========================================
+
+Try this instead:
+cd /opt/render/project/src && node migrations/add-assigned-to-field.js
+
+========================================

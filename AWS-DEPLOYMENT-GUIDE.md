@@ -1,25 +1,65 @@
-# ☁️ AWS Deployment Guide - Recruitment Management System
+# ☁️ AWS Deployment Guide - Delta Cube Recruitment System
 
-Complete guide to deploying your recruitment system on AWS.
+**Complete step-by-step guide to deploy your recruitment management system on AWS.**
+
+This guide is written for beginners - no AWS experience needed! Follow each step carefully.
 
 ---
 
-## 🎯 Recommended AWS Architecture
+## 📖 What You'll Learn
 
-### Option 1: Simple & Cost-Effective (Recommended for Start)
-```
-Internet → Route 53 → Application Load Balancer → EC2 Instance
-                                                    ↓
-                                              RDS PostgreSQL
-                                                    ↓
-                                                  S3 Bucket
-```
+1. How to set up AWS account
+2. How to create a database in the cloud
+3. How to deploy your Node.js application
+4. How to set up file storage for resumes
+5. How to get a secure HTTPS website
+6. How to monitor and maintain your system
 
-**Monthly Cost:** ~$30-50
-- EC2 t3.small: ~$15/month
-- RDS db.t3.micro: ~$15/month
-- S3: ~$1-5/month
-- ALB: ~$16/month
+**Total Time:** 2-3 hours  
+**Difficulty:** Beginner-friendly  
+**Cost:** $30-50/month to start
+
+---
+
+## 🎯 What We're Building
+
+```
+Your Users → Your Domain (https://yourcompany.com)
+                    ↓
+            AWS Load Balancer (handles HTTPS)
+                    ↓
+            EC2 Server (runs your Node.js app)
+                    ↓
+            ┌───────┴───────┐
+            ↓               ↓
+    RDS Database    S3 Storage (or Cloudinary)
+    (PostgreSQL)    (Resume files)
+```
+z
+- **Load Balancer:** Handles web traffic, provides HTTPS security
+- **EC2 Server:** Runs your recruitment application
+- **RDS Database:** Stores candidate data, users, applications
+- **S3/Cloudinary:** Stores uploaded resume files
+
+---
+
+## 💰 Cost Breakdown (Monthly)
+
+### Starter Setup (~$30-50/month)
+- **EC2 t3.small:** $15/month (your application server)
+- **RDS db.t3.micro:** $15/month (your database)
+- **S3 Storage:** $1-5/month (resume files)
+- **Load Balancer:** $16/month (HTTPS and traffic management)
+- **Data Transfer:** $0-5/month (depends on traffic)
+
+### What You Get:
+- ✅ 24/7 uptime
+- ✅ Automatic backups
+- ✅ HTTPS security
+- ✅ Can handle 100-500 users
+- ✅ Professional setup
+
+**Note:** You can use Cloudinary (free tier) instead of S3 to save $1-5/month!
 
 ### Option 2: Scalable & Production-Ready
 ```
@@ -87,7 +127,7 @@ Internet → Route 53 → CloudFront → Application Load Balancer
 1. Go to https://aws.amazon.com
 2. Create account (requires credit card)
 3. Enable MFA for root account
-4. Create IAM admin user (don't use root!)
+4. Create IAM admin user (don't use root!) 001092882087
 
 #### Step 2: Set Up VPC (Virtual Private Cloud)
 ```bash

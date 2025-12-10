@@ -17,6 +17,21 @@ uploads/
 *.docx
 *.doc
 
+# Test resumes (local testing only)
+test-resumes/
+TESTING-GUIDE.md
+cleanup-test-data.js
+test-resume-parser.js
+
+# Session summaries (local documentation)
+RESUME-PARSER-STATUS.md
+SESSION-SUMMARY.md
+FINAL-SESSION-SUMMARY.md
+CLOUDINARY-TO-S3-SUMMARY.md
+QUICK-STATUS.md
+README-S3-MIGRATION.md
+QUICK-STATUS.md
+
 # Logs
 *.log
 npm-debug.log*
