@@ -477,7 +477,7 @@ function parseResumeBasic(text) {
   return parsed;
 }
 
-// Main resume parser function with tiered approach
+// Main resume parser function with comprehensive multi-level fallback
 async function parseResume(filePath) {
   try {
     console.log('\n📄 Parsing resume:', filePath);
@@ -503,35 +503,139 @@ async function parseResume(filePath) {
 
     console.log(`✅ Extracted ${text.length} characters`);
 
-    // Step 2: Try Tier 1 - Structured parsing (fast, no AI)
-    const tier1Result = parseResumeStructured(text);
-    if (tier1Result) {
-      console.log('✅ Tier 1 parsing successful!');
-      return tier1Result;
+    // Initialize result with empty values
+    let result = {
+      name: '',
+      email: '',
+      phone: '',
+      location: '',
+      skills: [],
+      experience_years: 0,
+      education: [],
+      certifications: [],
+      availability: '',
+      linkedin: '',
+      summary: '',
+      tier: 'multi-level',
+      confidence: 'low'
+    };
+
+    // LEVEL 1: Try AI parsing first (if available)
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
+      console.log('🤖 LEVEL 1: Trying AI parsing...');
+      try {
+        const aiResult = await parseResumeWithAI(text);
+        if (aiResult) {
+          result = { ...result, ...aiResult };
+          console.log('✅ AI parsing completed');
+        }
+      } catch (error) {
+        console.log('⚠️  AI parsing failed, continuing with fallbacks');
+      }
     }
 
-    // Step 3: Try Tier 2 - Basic regex parsing (no AI)
-    console.log('🔍 Tier 1 failed, trying Tier 2...');
-    const tier2Result = parseResumeBasic(text);
+    // LEVEL 2: Try structured parsing
+    console.log('🔍 LEVEL 2: Trying structured parsing...');
+    const structuredResult = parseResumeStructured(text);
+    if (structuredResult) {
+      // Merge results, keeping AI data if better
+      if (!result.name && structuredResult.name !== 'Unknown') result.name = structuredResult.name;
+      if (!result.email && structuredResult.email) result.email = structuredResult.email;
+      if (!result.phone && structuredResult.phone) result.phone = structuredResult.phone;
+      if (structuredResult.skills.length > result.skills.length) result.skills = structuredResult.skills;
+      if (structuredResult.experience_years > 0) result.experience_years = structuredResult.experience_years;
+    }
+
+    // LEVEL 3: Try basic regex parsing
+    console.log('🔍 LEVEL 3: Trying basic regex parsing...');
+    const basicResult = parseResumeBasic(text);
+    if (basicResult) {
+      if (!result.name && basicResult.name !== 'Unknown') result.name = basicResult.name;
+      if (!result.email && basicResult.email) result.email = basicResult.email;
+      if (!result.phone && basicResult.phone) result.phone = basicResult.phone;
+      if (basicResult.skills.length > result.skills.length) result.skills = basicResult.skills;
+      if (!result.experience_years && basicResult.experience_years > 0) result.experience_years = basicResult.experience_years;
+    }
+
+    // LEVEL 4: Label-based extraction (look for "Name:", "Email:", etc.)
+    console.log('🔍 LEVEL 4: Label-based extraction...');
+    if (!result.name) {
+      const nameMatch = text.match(/(?:name|candidate)\s*:?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i);
+      if (nameMatch) {
+        result.name = nameMatch[1].trim();
+        console.log(`   ✓ Found name with label: ${result.name}`);
+      }
+    }
     
-    // If Tier 2 got good data, return it
-    if (tier2Result && tier2Result.name !== 'Unknown' && tier2Result.email) {
-      console.log('✅ Tier 2 parsing successful!');
-      return tier2Result;
+    if (!result.email) {
+      const emailMatch = text.match(/(?:email|e-mail|mail)\s*:?\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+      if (emailMatch) {
+        result.email = emailMatch[1].toLowerCase().trim();
+        console.log(`   ✓ Found email with label: ${result.email}`);
+      }
     }
-
-    // Step 4: Try Tier 3 - AI parsing (slow, costs money)
-    console.log('🔍 Tier 2 insufficient, trying Tier 3 (AI)...');
-    const tier3Result = await parseResumeWithAI(text);
     
-    if (tier3Result) {
-      console.log('✅ Tier 3 (AI) parsing successful!');
-      return tier3Result;
+    if (!result.phone) {
+      const phoneMatch = text.match(/(?:phone|mobile|contact|cell)\s*:?\s*([\d\s\-+()]{10,})/i);
+      if (phoneMatch) {
+        const digits = phoneMatch[1].replace(/\D/g, '');
+        if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
+          result.phone = phoneMatch[1].trim();
+          console.log(`   ✓ Found phone with label: ${result.phone}`);
+        }
+      }
     }
 
-    // Step 5: Return best effort from Tier 2
-    console.log('⚠️  All tiers attempted, returning Tier 2 result');
-    return tier2Result;
+    // FINAL FALLBACK: Use filename ONLY as last resort
+    if (!result.name || result.name === 'Unknown') {
+      // Extract from first few lines of text
+      const lines = text.split('\n').filter(l => l.trim()).slice(0, 10);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Skip lines with @ or numbers
+        if (trimmed.includes('@') || /\d{5,}/.test(trimmed)) continue;
+        // Check if it looks like a name (2-4 words, mostly letters)
+        const words = trimmed.split(/\s+/);
+        if (words.length >= 2 && words.length <= 4) {
+          const validWords = words.filter(w => /^[A-Z][a-z]+$/.test(w));
+          if (validWords.length >= 2) {
+            result.name = trimmed;
+            console.log(`   ✓ Found name in first lines: ${result.name}`);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Absolute last resort: use filename
+    if (!result.name) {
+      const filename = filePath.split('/').pop().split('\\').pop();
+      result.name = filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim();
+      console.log(`   ⚠️  Using filename as name: ${result.name}`);
+    }
+
+    // Set confidence based on what we found
+    const hasEmail = result.email && !result.email.includes('placeholder');
+    const hasPhone = result.phone && result.phone !== '0000000000';
+    const hasName = result.name && !result.name.includes('resume');
+    
+    if (hasEmail && hasPhone && hasName) {
+      result.confidence = 'high';
+    } else if ((hasEmail || hasPhone) && hasName) {
+      result.confidence = 'medium';
+    } else {
+      result.confidence = 'low';
+    }
+
+    console.log('✅ Final result:', {
+      name: result.name,
+      email: result.email || 'NOT FOUND',
+      phone: result.phone || 'NOT FOUND',
+      skills: result.skills.length,
+      confidence: result.confidence
+    });
+
+    return result;
 
   } catch (error) {
     console.error('❌ Resume parsing error:', error.message);
