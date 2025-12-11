@@ -153,13 +153,24 @@ NODE_ENV=development
 **Status**: ✅ All changes pushed to GitHub
 **Render**: Will auto-deploy on next push
 
+### 🔄 Latest Update (After Initial Release)
+
+#### Resume Parsing - Multi-Level Fallback System
+- ✅ **LEVEL 1**: AI parsing (if API key available)
+- ✅ **LEVEL 2**: Structured section-based parsing
+- ✅ **LEVEL 3**: Basic regex pattern matching
+- ✅ **LEVEL 4**: Label-based extraction ("Name:", "Email:", "Phone:")
+- ✅ **LEVEL 5**: First-line name detection
+- ✅ **FALLBACK**: Filename only as absolute last resort
+
+**Result**: Parser now extracts actual names from PDF content, not filenames!
+
 ### 🎯 Next Steps (Optional)
 
 1. Add more sorting options (by name, date, etc.)
 2. Add skill keyword learning from manual entries
-3. Improve resume parsing with multi-level fallbacks
-4. Add data validation before saving
-5. Clean up invalid JSON in existing resumes
+3. Add data validation before saving
+4. Clean up invalid JSON in existing resumes
 
 ### 📝 Notes
 
