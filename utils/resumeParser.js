@@ -317,33 +317,29 @@ function parseResumeBasic(text) {
     summary: ''
   };
 
-  // Extract email - multiple patterns for better detection
-  const emailPatterns = [
-    /\b[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}\b/g,  // Standard
-    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,  // More lenient
-    /[\w\.-]+@[\w\.-]+\.\w{2,}/g  // Very lenient
-  ];
+  // Extract email - Simple and effective: find anything with @domain.com
+  const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+  const emailMatches = text.match(emailPattern);
   
-  for (const pattern of emailPatterns) {
-    const emailMatches = text.match(pattern);
-    if (emailMatches && emailMatches.length > 0) {
-      // Validate email format
-      for (const email of emailMatches) {
-        // Must have @ and . in correct positions
-        if (email.includes('@') && email.includes('.')) {
-          const parts = email.split('@');
-          if (parts.length === 2 && parts[0].length > 0 && parts[1].includes('.')) {
-            const domain = parts[1].split('.');
-            // Domain must have at least 2 parts and TLD must be 2+ chars
-            if (domain.length >= 2 && domain[domain.length - 1].length >= 2) {
-              parsed.email = email.toLowerCase();
-              console.log(`   ✓ Found email: ${parsed.email}`);
-              break;
-            }
-          }
-        }
+  if (emailMatches && emailMatches.length > 0) {
+    // Take the first valid email
+    for (const email of emailMatches) {
+      const cleanEmail = email.toLowerCase().trim();
+      // Basic validation: must have @ and at least one . after @
+      if (cleanEmail.includes('@') && cleanEmail.split('@')[1].includes('.')) {
+        parsed.email = cleanEmail;
+        console.log(`   ✓ Found email: ${parsed.email}`);
+        break;
       }
-      if (parsed.email) break;
+    }
+  }
+  
+  // Fallback: Look for "Email:" or "E-mail:" label
+  if (!parsed.email) {
+    const emailLabelMatch = text.match(/(?:email|e-mail|mail)\s*:?\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+    if (emailLabelMatch) {
+      parsed.email = emailLabelMatch[1].toLowerCase().trim();
+      console.log(`   ✓ Found email with label: ${parsed.email}`);
     }
   }
   
@@ -352,30 +348,32 @@ function parseResumeBasic(text) {
     console.log(`   Text sample: ${text.substring(0, 200)}...`);
   }
 
-  // Extract phone - multiple patterns for better detection
-  const phonePatterns = [
-    /\+91[-\s]?[6-9]\d{9}\b/g,  // Indian mobile with +91
-    /\b[6-9]\d{9}\b/g,  // Indian mobile without country code (exactly 10 digits)
-    /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,  // US format
-    /\b\d{10}\b/g,  // Any 10 digits
-    /\+?\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g  // International format
-  ];
+  // Extract phone - Simple: find 10-digit numbers
+  // Pattern 1: Look for 10 consecutive digits (with optional separators)
+  const phonePattern = /(?:\+91[-\s]?)?(?:\d[-\s]?){10}/g;
+  const phoneMatches = text.match(phonePattern);
   
-  for (const pattern of phonePatterns) {
-    const phoneMatches = text.match(pattern);
-    if (phoneMatches && phoneMatches.length > 0) {
-      for (const phone of phoneMatches) {
-        const trimmed = phone.trim();
-        // Extract only digits to validate length
-        const digits = trimmed.replace(/\D/g, '');
-        // Must be 10 digits (or 12 with country code)
-        if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
-          parsed.phone = trimmed;
-          console.log(`   ✓ Found phone: ${parsed.phone} (${digits.length} digits)`);
-          break;
-        }
+  if (phoneMatches && phoneMatches.length > 0) {
+    for (const phone of phoneMatches) {
+      const digits = phone.replace(/\D/g, ''); // Remove all non-digits
+      // Must be exactly 10 digits (or 12 with +91)
+      if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
+        parsed.phone = phone.trim();
+        console.log(`   ✓ Found phone: ${parsed.phone} (${digits.length} digits)`);
+        break;
       }
-      if (parsed.phone) break;
+    }
+  }
+  
+  // Fallback: Look for "Phone:" or "Mobile:" label
+  if (!parsed.phone) {
+    const phoneLabelMatch = text.match(/(?:phone|mobile|contact|cell)\s*:?\s*([\d\s\-+()]{10,})/i);
+    if (phoneLabelMatch) {
+      const digits = phoneLabelMatch[1].replace(/\D/g, '');
+      if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
+        parsed.phone = phoneLabelMatch[1].trim();
+        console.log(`   ✓ Found phone with label: ${parsed.phone}`);
+      }
     }
   }
   

@@ -8,6 +8,8 @@ function RecruiterDashboard() {
   const [loading, setLoading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [adminsList, setAdminsList] = useState([]);
   const [assigningResume, setAssigningResume] = useState({});
   
@@ -44,7 +46,11 @@ function RecruiterDashboard() {
 
   const fetchResumes = async () => {
     try {
-      const response = await axios.get('/api/applications/my-resumes', {
+      let url = '/api/applications/my-resumes';
+      if (sortBy === 'experience') {
+        url += `?sort_by=experience&sort_order=${sortOrder}`;
+      }
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResumes(response.data);
@@ -110,7 +116,12 @@ function RecruiterDashboard() {
     }
 
     try {
-      const response = await axios.get(`/api/applications/my-resumes/search?skill=${searchTerm}`, {
+      let url = `/api/applications/my-resumes/search?skill=${searchTerm}`;
+      if (sortBy === 'experience') {
+        url += `&sort_by=experience&sort_order=${sortOrder}`;
+      }
+      
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResumes(response.data);
@@ -813,14 +824,32 @@ function RecruiterDashboard() {
             {/* Search Section */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <h2 className="text-xl font-semibold mb-4">Search Resumes</h2>
-              <div className="flex gap-4">
+              <div className="flex gap-4 mb-4">
                 <input
                   type="text"
-                  placeholder="Search by skill..."
+                  placeholder="Search by primary skill..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sort By</option>
+                  <option value="experience">Experience</option>
+                </select>
+                {sortBy === 'experience' && (
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="asc">Low to High</option>
+                    <option value="desc">High to Low</option>
+                  </select>
+                )}
                 <button onClick={handleSearch} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
                   Search
                 </button>
@@ -828,6 +857,7 @@ function RecruiterDashboard() {
                   Reset
                 </button>
               </div>
+              <p className="text-sm text-gray-600">💡 Tip: Search looks only in primary skill field</p>
             </div>
 
             {/* Resumes Table */}

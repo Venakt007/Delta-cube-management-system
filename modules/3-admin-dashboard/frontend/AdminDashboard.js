@@ -15,7 +15,9 @@ function AdminDashboard() {
     experience_min: '',
     experience_max: '',
     location: '',
-    technology: ''
+    technology: '',
+    sort_by: '',
+    sort_order: 'desc'
   });
 
 
@@ -30,7 +32,11 @@ function AdminDashboard() {
 
   const fetchAllResumes = async () => {
     try {
-      const response = await axios.get('/api/admin/resumes', {
+      let url = '/api/admin/resumes';
+      if (filters.sort_by === 'experience') {
+        url += `?sort_by=experience&sort_order=${filters.sort_order}`;
+      }
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResumes(response.data);
@@ -98,6 +104,8 @@ function AdminDashboard() {
       skills: '',
       experience_min: '',
       experience_max: '',
+      sort_by: '',
+      sort_order: 'desc',
       location: '',
       technology: ''
     });
@@ -336,6 +344,24 @@ function AdminDashboard() {
                   onChange={(e) => setFilters({ ...filters, technology: e.target.value })}
                   className="px-4 py-2 border border-gray-300 rounded-lg"
                 />
+                <select
+                  value={filters.sort_by}
+                  onChange={(e) => setFilters({ ...filters, sort_by: e.target.value })}
+                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Sort By</option>
+                  <option value="experience">Experience</option>
+                </select>
+                {filters.sort_by === 'experience' && (
+                  <select
+                    value={filters.sort_order}
+                    onChange={(e) => setFilters({ ...filters, sort_order: e.target.value })}
+                    className="px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="asc">Low to High</option>
+                    <option value="desc">High to Low</option>
+                  </select>
+                )}
               </div>
               <div className="flex gap-4 mt-4">
                 <button onClick={handleFilter} disabled={loading} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
@@ -345,6 +371,7 @@ function AdminDashboard() {
                   Reset
                 </button>
               </div>
+              <p className="text-sm text-gray-600 mt-2">💡 Tip: Skills search looks only in primary skill field</p>
             </div>
 
             <div className="bg-white rounded-lg shadow overflow-hidden">

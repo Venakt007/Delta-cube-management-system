@@ -8,7 +8,7 @@ const router = express.Router();
 // Get all resumes (HTML form + all recruiters) - Can filter by placement status
 router.get('/resumes', auth, isAdmin, async (req, res) => {
   try {
-    const { showOnboarded } = req.query;
+    const { showOnboarded, sort_by, sort_order } = req.query;
     
     let query = `SELECT a.*, u.name as uploader_name, u.email as uploader_email
       FROM applications a
@@ -23,7 +23,13 @@ router.get('/resumes', auth, isAdmin, async (req, res) => {
     }
     // If showOnboarded === 'true', show all resumes
     
-    query += ` ORDER BY a.created_at DESC`;
+    // Sorting
+    if (sort_by === 'experience') {
+      const order = sort_order === 'asc' ? 'ASC' : 'DESC';
+      query += ` ORDER BY a.experience_years ${order}, a.created_at DESC`;
+    } else {
+      query += ` ORDER BY a.created_at DESC`;
+    }
 
     const result = await pool.query(query);
 

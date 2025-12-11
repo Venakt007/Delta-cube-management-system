@@ -224,6 +224,14 @@ router.post('/upload-bulk', auth, isRecruiterOrAdmin, (req, res, next) => {
 // Recruiter: Get own uploaded resumes (dashboard uploads only, not HTML form)
 router.get('/my-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
+    const { sort_by, sort_order } = req.query;
+    
+    let orderClause = 'ORDER BY a.created_at DESC';
+    if (sort_by === 'experience') {
+      const order = sort_order === 'asc' ? 'ASC' : 'DESC';
+      orderClause = `ORDER BY a.experience_years ${order}, a.created_at DESC`;
+    }
+    
     const result = await pool.query(
       `SELECT a.id, a.name, a.email, a.phone, a.linkedin, a.technology, a.primary_skill, a.secondary_skill, 
               a.experience_years, a.location, a.job_types, a.resume_url, a.id_proof_url, a.created_at, 
@@ -233,7 +241,7 @@ router.get('/my-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
       FROM applications a
       LEFT JOIN users u ON a.assigned_to = u.id
       WHERE a.uploaded_by = $1 AND a.source = 'dashboard'
-      ORDER BY a.created_at DESC`,
+      ${orderClause}`,
       [req.user.id]
     );
 
@@ -247,11 +255,19 @@ router.get('/my-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
 // Recruiter: Get social media/HTML form submissions
 router.get('/social-media-resumes', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
+    const { sort_by, sort_order } = req.query;
+    
+    let orderClause = 'ORDER BY created_at DESC';
+    if (sort_by === 'experience') {
+      const order = sort_order === 'asc' ? 'ASC' : 'DESC';
+      orderClause = `ORDER BY experience_years ${order}, created_at DESC`;
+    }
+    
     const result = await pool.query(
       `SELECT id, name, email, phone, linkedin, technology, primary_skill, secondary_skill, experience_years, location, job_types, resume_url, id_proof_url, created_at, parsed_data, recruitment_status, placement_status, referral_source, source
       FROM applications 
       WHERE source = 'html_form'
-      ORDER BY created_at DESC`
+      ${orderClause}`
     );
 
     res.json(result.rows);
