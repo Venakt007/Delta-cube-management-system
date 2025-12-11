@@ -1,4 +1,4 @@
-// Advanced JD Matching Algorithm
+// Advanced JD Matching Algorithm with Multi-Level Fallback
 
 // Comprehensive skill database with variations and related terms
 const skillDatabase = {
@@ -79,10 +79,12 @@ const skillDatabase = {
   'bash': ['bash', 'shell', 'shell scripting']
 };
 
-// Extract skills from text with better accuracy
-function extractSkills(text) {
+// LEVEL 1: Extract skills using skill database with variations
+function extractSkillsLevel1(text) {
   const lowerText = text.toLowerCase();
   const foundSkills = new Set();
+  
+  console.log('🔍 LEVEL 1: Checking skill database...');
   
   // Check each skill category
   for (const [mainSkill, variations] of Object.entries(skillDatabase)) {
@@ -98,27 +100,173 @@ function extractSkills(text) {
     }
   }
   
-  // Also extract any technical terms that might not be in our database
-  // Look for capitalized words or common patterns
-  const technicalTerms = text.match(/\b[A-Z][a-z]*(?:[A-Z][a-z]*)*\b/g) || [];
-  const commonTechPatterns = text.match(/\b(?:programming|development|framework|library|database|cloud|devops|testing|api|backend|frontend|fullstack|full-stack)\b/gi) || [];
+  console.log(`   ✓ Level 1 found ${foundSkills.size} skills`);
+  return Array.from(foundSkills);
+}
+
+// LEVEL 2: Extract capitalized technical terms
+function extractSkillsLevel2(text) {
+  console.log('🔍 LEVEL 2: Extracting capitalized terms...');
+  const foundSkills = new Set();
   
-  // Add these as potential skills if not already found
-  [...technicalTerms, ...commonTechPatterns].forEach(term => {
+  // Look for capitalized words (likely technology names)
+  const technicalTerms = text.match(/\b[A-Z][a-z]*(?:[A-Z][a-z]*)*\b/g) || [];
+  
+  technicalTerms.forEach(term => {
     const termLower = term.toLowerCase();
-    // Only add if it's not already in our found skills and looks technical
-    if (term.length > 2 && !foundSkills.has(termLower)) {
-      // Check if it's a known skill variation
-      for (const [mainSkill, variations] of Object.entries(skillDatabase)) {
-        if (variations.some(v => v.toLowerCase() === termLower)) {
-          foundSkills.add(mainSkill);
-          break;
-        }
+    // Check if it's a known skill variation
+    for (const [mainSkill, variations] of Object.entries(skillDatabase)) {
+      if (variations.some(v => v.toLowerCase() === termLower)) {
+        foundSkills.add(mainSkill);
+        break;
       }
     }
   });
   
+  console.log(`   ✓ Level 2 found ${foundSkills.size} skills`);
   return Array.from(foundSkills);
+}
+
+// LEVEL 3: Extract from common patterns and keywords
+function extractSkillsLevel3(text) {
+  console.log('🔍 LEVEL 3: Pattern-based extraction...');
+  const foundSkills = new Set();
+  
+  // Common patterns in JDs
+  const patterns = [
+    /(?:experience (?:with|in)|proficiency in|knowledge of|skilled in|expertise in)\s+([a-z0-9\s,./+#-]+)/gi,
+    /(?:required skills|must have|should have|nice to have):\s*([a-z0-9\s,./+#-]+)/gi,
+    /(?:technologies|tools|frameworks|languages):\s*([a-z0-9\s,./+#-]+)/gi
+  ];
+  
+  patterns.forEach(pattern => {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
+    while ((match = regex.exec(text)) !== null) {
+      const skillText = match[1];
+      // Split by common separators
+      const skills = skillText.split(/[,;|•·\n]/).map(s => s.trim());
+      
+      skills.forEach(skill => {
+        if (skill.length > 2 && skill.length < 50) {
+          // Check against skill database
+          const skillLower = skill.toLowerCase();
+          for (const [mainSkill, variations] of Object.entries(skillDatabase)) {
+            if (variations.some(v => skillLower.includes(v))) {
+              foundSkills.add(mainSkill);
+              break;
+            }
+          }
+        }
+      });
+    }
+  });
+  
+  console.log(`   ✓ Level 3 found ${foundSkills.size} skills`);
+  return Array.from(foundSkills);
+}
+
+// LEVEL 4: Load skills from database (dynamic keywords)
+async function extractSkillsLevel4(text) {
+  console.log('🔍 LEVEL 4: Checking database keywords...');
+  const foundSkills = new Set();
+  
+  try {
+    const { pool } = require('../config/database');
+    
+    // Get all unique skills from database
+    const result = await pool.query(`
+      SELECT DISTINCT 
+        TRIM(UNNEST(STRING_TO_ARRAY(primary_skill, ','))) as skill
+      FROM applications
+      WHERE primary_skill IS NOT NULL AND primary_skill != ''
+      UNION
+      SELECT DISTINCT 
+        TRIM(UNNEST(STRING_TO_ARRAY(secondary_skill, ','))) as skill
+      FROM applications
+      WHERE secondary_skill IS NOT NULL AND secondary_skill != ''
+    `);
+    
+    const lowerText = text.toLowerCase();
+    
+    // Check each database skill
+    result.rows.forEach(row => {
+      const skill = row.skill.trim();
+      if (skill && skill.length > 1) {
+        const skillLower = skill.toLowerCase();
+        const escapedSkill = skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedSkill}\\b`, 'i');
+        if (regex.test(lowerText)) {
+          foundSkills.add(skill);
+        }
+      }
+    });
+    
+    console.log(`   ✓ Level 4 found ${foundSkills.size} skills from database`);
+  } catch (error) {
+    console.log('   ⚠️  Level 4 failed:', error.message);
+  }
+  
+  return Array.from(foundSkills);
+}
+
+// LEVEL 5: Extract any word that looks technical (last resort)
+function extractSkillsLevel5(text) {
+  console.log('🔍 LEVEL 5: Extracting technical-looking terms...');
+  const foundSkills = new Set();
+  
+  // Common technical suffixes/prefixes
+  const technicalPatterns = [
+    /\b\w+(?:js|py|sql|db|api|ui|ux|ml|ai|ci|cd)\b/gi,  // Ends with tech suffix
+    /\b(?:web|mobile|cloud|data|full|back|front)[\w-]+/gi,  // Starts with tech prefix
+  ];
+  
+  technicalPatterns.forEach(pattern => {
+    const matches = text.match(pattern) || [];
+    matches.forEach(match => {
+      if (match.length > 2 && match.length < 30) {
+        foundSkills.add(match);
+      }
+    });
+  });
+  
+  console.log(`   ✓ Level 5 found ${foundSkills.size} technical terms`);
+  return Array.from(foundSkills);
+}
+
+// Multi-level fallback skill extraction
+async function extractSkills(text) {
+  console.log('\n📋 Starting multi-level JD skill extraction...');
+  const allSkills = new Set();
+  
+  // LEVEL 1: Skill database matching
+  const level1Skills = extractSkillsLevel1(text);
+  level1Skills.forEach(skill => allSkills.add(skill));
+  
+  // LEVEL 2: Capitalized terms
+  const level2Skills = extractSkillsLevel2(text);
+  level2Skills.forEach(skill => allSkills.add(skill));
+  
+  // LEVEL 3: Pattern-based extraction
+  const level3Skills = extractSkillsLevel3(text);
+  level3Skills.forEach(skill => allSkills.add(skill));
+  
+  // LEVEL 4: Database keywords (async)
+  const level4Skills = await extractSkillsLevel4(text);
+  level4Skills.forEach(skill => allSkills.add(skill));
+  
+  // LEVEL 5: Technical terms (only if we found very few skills)
+  if (allSkills.size < 3) {
+    console.log('⚠️  Found < 3 skills, trying Level 5...');
+    const level5Skills = extractSkillsLevel5(text);
+    level5Skills.forEach(skill => allSkills.add(skill));
+  }
+  
+  const finalSkills = Array.from(allSkills);
+  console.log(`✅ Total skills extracted: ${finalSkills.length}`);
+  console.log(`   Skills: ${finalSkills.slice(0, 10).join(', ')}${finalSkills.length > 10 ? '...' : ''}`);
+  
+  return finalSkills;
 }
 
 // Extract years of experience from JD
@@ -264,7 +412,7 @@ function calculateExperienceMatch(candidateYears, requirement) {
 }
 
 // Main matching function
-function matchCandidateToJD(candidate, jdText) {
+async function matchCandidateToJD(candidate, jdText) {
   try {
     // Validate inputs
     if (!candidate) {
@@ -274,8 +422,8 @@ function matchCandidateToJD(candidate, jdText) {
       throw new Error('Job description must be a non-empty string');
     }
     
-    // Extract requirements from JD
-    const requiredSkills = extractSkills(jdText);
+    // Extract requirements from JD (now async)
+    const requiredSkills = await extractSkills(jdText);
     const experienceReq = extractExperienceRequirement(jdText);
     
     // Get candidate skills from multiple sources

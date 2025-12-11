@@ -130,10 +130,10 @@ router.post('/jd-match', auth, isAdmin, async (req, res) => {
     
     console.log('   Found', resumes.rows.length, 'resumes to match');
 
-    // Use advanced matching algorithm
-    const matches = resumes.rows.map(resume => {
+    // Use advanced matching algorithm (now async)
+    const matchPromises = resumes.rows.map(async (resume) => {
       try {
-        const matchResult = matchCandidateToJD(resume, jobDescription);
+        const matchResult = await matchCandidateToJD(resume, jobDescription);
         return {
           ...resume,
           ...matchResult
@@ -147,6 +147,8 @@ router.post('/jd-match', auth, isAdmin, async (req, res) => {
         };
       }
     });
+    
+    const matches = await Promise.all(matchPromises);
 
     // Sort by match percentage
     matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
