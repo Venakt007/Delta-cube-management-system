@@ -192,3 +192,128 @@ NODE_ENV=development
 - Database: PostgreSQL with 9 test resumes
 
 **All Features Verified Working** ✅
+
+
+---
+
+## 🔄 Update: December 11, 2024 - Enhanced Resume Parser
+
+### 🎯 Improvements
+
+#### 1. **Better Phone Number Detection**
+- ✅ Added multiple phone patterns for comprehensive detection:
+  - Pattern 1: `+91` followed by 10 digits (Indian mobile)
+  - Pattern 2: 10-digit numbers starting with 6-9
+  - Pattern 3: Formatted numbers (123-456-7890)
+  - Pattern 4: Formatted with parentheses ((123) 456-7890)
+- ✅ Enhanced label-based fallback: "Phone:", "Mobile:", "Contact:", "Tel:", "Telephone:"
+- ✅ Better logging to debug phone detection issues
+
+#### 2. **Dynamic Skill Keywords System** 🚀
+- ✅ **Learning System**: Parser now learns from your database
+  - Automatically loads all unique skills from `applications` table
+  - Includes both `primary_skill` and `secondary_skill` entries
+  - Caches skills for 5 minutes to reduce database load
+- ✅ **Auto-Update**: When new skills are entered via:
+  - Manual entry form → Skills added to keyword database
+  - Social media form → Skills added to keyword database
+- ✅ **Better Matching**: Uses word boundary regex for accurate detection
+- ✅ **Scalable**: Grows smarter as more resumes are processed
+
+#### 3. **Enhanced Name Extraction for Render**
+- ✅ More lenient name validation rules:
+  - Accepts 1-5 words (increased from 2-4)
+  - Allows special characters (dots, apostrophes)
+  - Better handling of various name formats
+- ✅ Improved fallback chain:
+  1. First lines of text (skip lines with @ or numbers)
+  2. Extract from email username
+  3. Filename (absolute last resort)
+- ✅ Better logging for debugging name extraction
+
+### 📝 Files Modified
+
+1. **`utils/resumeParser.js`**
+   - Added `skillKeywords` array with 60+ common tech skills
+   - Added `loadSkillsFromDatabase()` function
+   - Added `addSkillKeyword()` function
+   - Added `extractSkillsWithKeywords()` function with caching
+   - Enhanced phone detection with 4 different patterns
+   - Improved name extraction logic
+   - Exported `addSkillKeyword` for use in routes
+
+2. **`routes/applications.js`**
+   - Added skill keyword tracking to `/submit` endpoint (social media form)
+   - Added skill keyword tracking to `/manual-entry` endpoint
+   - Both endpoints now call `addSkillKeyword()` for new skills
+
+### 🧪 How It Works
+
+**Skill Learning Flow**:
+```
+User enters "React Native" in manual entry
+    ↓
+addSkillKeyword("React Native") called
+    ↓
+"React Native" added to skillKeywords array
+    ↓
+Next resume upload: Parser checks for "React Native"
+    ↓
+If found, adds to resume's skills array
+```
+
+**Phone Detection Flow**:
+```
+1. Try +91 pattern → Found? Use it
+2. Try 10-digit pattern → Found? Use it
+3. Try formatted patterns → Found? Use it
+4. Try label-based ("Phone:") → Found? Use it
+5. Not found → Log warning with text sample
+```
+
+### 🚀 Benefits
+
+1. **Render Compatibility**: Better name extraction works on deployed environment
+2. **Self-Learning**: System gets smarter with each manual entry
+3. **Better Accuracy**: Multiple phone patterns catch more formats
+4. **Debugging**: Enhanced logging helps identify parsing issues
+5. **Scalability**: Skill database grows automatically
+
+### 📊 Expected Results
+
+**Before**:
+- Name: `resume_1765214957207_924629252` (filename)
+- Phone: Not detected
+- Skills: Only common keywords (JavaScript, Python, etc.)
+
+**After**:
+- Name: `Firdous Khan` (extracted from PDF)
+- Phone: `+91 9876543210` (detected with multiple patterns)
+- Skills: Includes custom skills from database (React Native, Next.js, etc.)
+
+### 🔧 Git Commit
+
+```bash
+git commit -m "Improve resume parser: better phone detection, dynamic skill keywords, enhanced name extraction for Render"
+git push origin main
+```
+
+**Commit Hash**: `1957758`
+
+### ⚠️ Important Notes
+
+1. **Old Resumes**: Improvements only apply to NEW uploads after deployment
+2. **Render Deployment**: Wait 2-3 minutes for Render to auto-deploy
+3. **Testing**: Delete old test resumes and re-upload to see improvements
+4. **Skills Database**: Will populate automatically as you use the system
+
+### 🎯 Next Steps
+
+1. Upload a test resume on Render after deployment
+2. Check if name is extracted correctly (not filename)
+3. Verify phone number detection
+4. Confirm skills are detected (including custom ones from database)
+
+---
+
+**Status**: ✅ Pushed to GitHub, waiting for Render deployment
