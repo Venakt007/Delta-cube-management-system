@@ -39,7 +39,7 @@ router.get('/resumes', auth, isAdmin, async (req, res) => {
 // Advanced filter - Exclude "Onboarded" placement status
 router.get('/resumes/filter', auth, isAdmin, async (req, res) => {
   try {
-    const { skills, experience_min, experience_max, job_type, location, technology } = req.query;
+    const { skills, experience_min, experience_max, job_type, location, technology, sort_by, sort_order } = req.query;
     
     let query = `SELECT a.*, u.name as uploader_name, u.email as uploader_email
                  FROM applications a
@@ -54,7 +54,8 @@ router.get('/resumes/filter', auth, isAdmin, async (req, res) => {
       query += ` AND (`;
       const skillConditions = skillArray.map((_, idx) => {
         params.push(`%${skillArray[idx]}%`);
-        return `primary_skill ILIKE $${params.length} OR secondary_skill ILIKE $${params.length} OR parsed_data::text ILIKE $${params.length}`;
+        // Search ONLY in primary_skill
+        return `a.primary_skill ILIKE $${params.length}`;
       });
       query += skillConditions.join(' OR ') + ')';
     }
@@ -83,7 +84,13 @@ router.get('/resumes/filter', auth, isAdmin, async (req, res) => {
       query += ` AND technology ILIKE $${params.length}`;
     }
 
-    query += ' ORDER BY a.created_at DESC';
+    // Sorting
+    if (sort_by === 'experience') {
+      const order = sort_order === 'asc' ? 'ASC' : 'DESC';
+      query += ` ORDER BY a.experience_years ${order}, a.created_at DESC`;
+    } else {
+      query += ' ORDER BY a.created_at DESC';
+    }
 
     const result = await pool.query(query, params);
     res.json(result.rows);

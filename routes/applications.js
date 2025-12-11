@@ -317,7 +317,7 @@ router.post('/jd-match-social', auth, isRecruiterOrAdmin, async (req, res) => {
 // Recruiter: Search own resumes
 router.get('/my-resumes/search', auth, isRecruiterOrAdmin, async (req, res) => {
   try {
-    const { skill, experience_min, experience_max } = req.query;
+    const { skill, experience_min, experience_max, sort_by, sort_order } = req.query;
     
     let query = `SELECT a.*, u.name as assigned_to_name, u.email as assigned_to_email
                  FROM applications a
@@ -328,7 +328,8 @@ router.get('/my-resumes/search', auth, isRecruiterOrAdmin, async (req, res) => {
 
     if (skill) {
       paramCount++;
-      query += ` AND (a.primary_skill ILIKE $${paramCount} OR a.secondary_skill ILIKE $${paramCount} OR a.parsed_data::text ILIKE $${paramCount})`;
+      // Search ONLY in primary_skill
+      query += ` AND a.primary_skill ILIKE $${paramCount}`;
       params.push(`%${skill}%`);
     }
 
@@ -344,7 +345,13 @@ router.get('/my-resumes/search', auth, isRecruiterOrAdmin, async (req, res) => {
       params.push(experience_max);
     }
 
-    query += ' ORDER BY a.created_at DESC';
+    // Sorting
+    if (sort_by === 'experience') {
+      const order = sort_order === 'asc' ? 'ASC' : 'DESC';
+      query += ` ORDER BY a.experience_years ${order}, a.created_at DESC`;
+    } else {
+      query += ' ORDER BY a.created_at DESC';
+    }
 
     const result = await pool.query(query, params);
     
