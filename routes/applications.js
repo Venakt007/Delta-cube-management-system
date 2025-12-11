@@ -56,6 +56,15 @@ router.post('/submit', upload.fields([
     if (req.files['resume']) {
       parsedData = await parseResume(req.files['resume'][0].path);
     }
+    
+    // Add new skills to keyword database for future parsing
+    const { addSkillKeyword } = require('../utils/resumeParser');
+    if (primary_skill) {
+      primary_skill.split(',').forEach(skill => addSkillKeyword(skill.trim()));
+    }
+    if (secondary_skill) {
+      secondary_skill.split(',').forEach(skill => addSkillKeyword(skill.trim()));
+    }
 
     const result = await pool.query(
       `INSERT INTO applications 
@@ -507,6 +516,15 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
       tier: 'manual',
       confidence: 'high'
     };
+    
+    // Add new skills to keyword database for future parsing
+    const { addSkillKeyword } = require('../utils/resumeParser');
+    if (primary_skill) {
+      primary_skill.split(',').forEach(skill => addSkillKeyword(skill.trim()));
+    }
+    if (secondary_skill) {
+      secondary_skill.split(',').forEach(skill => addSkillKeyword(skill.trim()));
+    }
 
     if (action === 'update' && existing_id) {
       // Update existing profile

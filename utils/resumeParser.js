@@ -5,6 +5,84 @@ const axios = require('axios');
 const path = require('path');
 const os = require('os');
 
+// Dynamic skill keywords database
+let skillKeywords = [
+  'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'Angular', 'Vue', 'Django',
+  'SQL', 'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'AWS', 'Azure', 'GCP',
+  'Docker', 'Kubernetes', 'Git', 'TypeScript', 'C++', 'C#', 'PHP', 'Ruby',
+  'Go', 'Swift', 'Kotlin', 'HTML', 'CSS', 'REST', 'GraphQL', 'Jenkins',
+  'Terraform', 'Ansible', 'Linux', 'Agile', 'Scrum', 'CI/CD', 'Express',
+  'Spring', 'Flask', 'FastAPI', 'Laravel', 'Rails', 'ASP.NET', 'Pandas',
+  'NumPy', 'TensorFlow', 'PyTorch', 'Scikit-learn', 'Keras', 'OpenCV',
+  'Selenium', 'Jest', 'Mocha', 'Cypress', 'JUnit', 'Pytest', 'Postman'
+];
+
+// Load skills from database
+async function loadSkillsFromDatabase() {
+  try {
+    const { pool } = require('../config/database');
+    
+    // Get all unique skills from applications table
+    const result = await pool.query(`
+      SELECT DISTINCT 
+        TRIM(UNNEST(STRING_TO_ARRAY(primary_skill, ','))) as skill
+      FROM applications
+      WHERE primary_skill IS NOT NULL AND primary_skill != ''
+      UNION
+      SELECT DISTINCT 
+        TRIM(UNNEST(STRING_TO_ARRAY(secondary_skill, ','))) as skill
+      FROM applications
+      WHERE secondary_skill IS NOT NULL AND secondary_skill != ''
+    `);
+    
+    // Add database skills to keywords (avoid duplicates)
+    result.rows.forEach(row => {
+      const skill = row.skill.trim();
+      if (skill && skill.length > 1 && !skillKeywords.some(k => k.toLowerCase() === skill.toLowerCase())) {
+        skillKeywords.push(skill);
+      }
+    });
+    
+    console.log(`✅ Loaded ${result.rows.length} skills from database. Total keywords: ${skillKeywords.length}`);
+  } catch (error) {
+    console.log('⚠️  Could not load skills from database:', error.message);
+  }
+}
+
+// Add new skill to keywords
+function addSkillKeyword(skill) {
+  const trimmed = skill.trim();
+  if (trimmed && trimmed.length > 1 && !skillKeywords.some(k => k.toLowerCase() === trimmed.toLowerCase())) {
+    skillKeywords.push(trimmed);
+    console.log(`✅ Added new skill keyword: ${trimmed}`);
+  }
+}
+
+// Extract skills using keyword matching
+async function extractSkillsWithKeywords(text) {
+  // Load latest skills from database (cache for 5 minutes)
+  if (!extractSkillsWithKeywords.lastLoad || Date.now() - extractSkillsWithKeywords.lastLoad > 300000) {
+    await loadSkillsFromDatabase();
+    extractSkillsWithKeywords.lastLoad = Date.now();
+  }
+  
+  const textLower = text.toLowerCase();
+  const foundSkills = [];
+  
+  // Check each keyword
+  skillKeywords.forEach(skill => {
+    const skillLower = skill.toLowerCase();
+    // Use word boundary for better matching
+    const regex = new RegExp(`\\b${skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(textLower)) {
+      foundSkills.push(skill);
+    }
+  });
+  
+  console.log(`   ✓ Found ${foundSkills.length} skills: ${foundSkills.slice(0, 5).join(', ')}${foundSkills.length > 5 ? '...' : ''}`);
+  return foundSkills.slice(0, 20); // Limit to 20 skills
+}
+
 // Extract text from PDF (handles both local files and URLs)
 async function extractTextFromPDF(filePath) {
   let dataBuffer;
@@ -348,26 +426,36 @@ function parseResumeBasic(text) {
     console.log(`   Text sample: ${text.substring(0, 200)}...`);
   }
 
-  // Extract phone - Simple: find 10-digit numbers
-  // Pattern 1: Look for 10 consecutive digits (with optional separators)
-  const phonePattern = /(?:\+91[-\s]?)?(?:\d[-\s]?){10}/g;
-  const phoneMatches = text.match(phonePattern);
+  // Extract phone - Multiple patterns for better detection
+  // Pattern 1: +91 followed by 10 digits
+  // Pattern 2: 10 consecutive digits
+  // Pattern 3: Formatted numbers like (123) 456-7890 or 123-456-7890
+  const phonePatterns = [
+    /\+91[-\s]?[6-9]\d{9}/g,  // +91 followed by valid Indian mobile
+    /[6-9]\d{9}/g,  // 10-digit Indian mobile (starts with 6-9)
+    /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/g,  // Formatted: 123-456-7890
+    /\(\d{3}\)[-.\s]?\d{3}[-.\s]?\d{4}/g  // Formatted: (123) 456-7890
+  ];
   
-  if (phoneMatches && phoneMatches.length > 0) {
-    for (const phone of phoneMatches) {
-      const digits = phone.replace(/\D/g, ''); // Remove all non-digits
-      // Must be exactly 10 digits (or 12 with +91)
-      if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
-        parsed.phone = phone.trim();
-        console.log(`   ✓ Found phone: ${parsed.phone} (${digits.length} digits)`);
-        break;
+  for (const pattern of phonePatterns) {
+    const phoneMatches = text.match(pattern);
+    if (phoneMatches && phoneMatches.length > 0) {
+      for (const phone of phoneMatches) {
+        const digits = phone.replace(/\D/g, ''); // Remove all non-digits
+        // Must be exactly 10 digits (or 12 with +91)
+        if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
+          parsed.phone = phone.trim();
+          console.log(`   ✓ Found phone: ${parsed.phone} (${digits.length} digits)`);
+          break;
+        }
       }
+      if (parsed.phone) break;
     }
   }
   
   // Fallback: Look for "Phone:" or "Mobile:" label
   if (!parsed.phone) {
-    const phoneLabelMatch = text.match(/(?:phone|mobile|contact|cell)\s*:?\s*([\d\s\-+()]{10,})/i);
+    const phoneLabelMatch = text.match(/(?:phone|mobile|contact|cell|tel|telephone)\s*:?\s*([\d\s\-+()]{10,})/i);
     if (phoneLabelMatch) {
       const digits = phoneLabelMatch[1].replace(/\D/g, '');
       if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) {
@@ -379,6 +467,7 @@ function parseResumeBasic(text) {
   
   if (!parsed.phone) {
     console.log('   ✗ No valid 10-digit phone found in text');
+    console.log(`   Text sample for phone: ${text.substring(0, 500).replace(/\n/g, ' ')}`);
   }
 
   // Extract name - more lenient but still sensible
@@ -441,21 +530,9 @@ function parseResumeBasic(text) {
     console.log(`   First 5 lines: ${lines.slice(0, 5).join(' | ')}`);
   }
 
-  // Extract skills (common tech keywords)
-  const commonSkills = [
-    'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'Angular', 'Vue', 'Django',
-    'SQL', 'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'AWS', 'Azure', 'GCP',
-    'Docker', 'Kubernetes', 'Git', 'TypeScript', 'C++', 'C#', 'PHP', 'Ruby',
-    'Go', 'Swift', 'Kotlin', 'HTML', 'CSS', 'REST', 'GraphQL', 'Jenkins',
-    'Terraform', 'Ansible', 'Linux', 'Agile', 'Scrum', 'CI/CD'
-  ];
-  
-  const textLower = text.toLowerCase();
-  commonSkills.forEach(skill => {
-    if (textLower.includes(skill.toLowerCase())) {
-      parsed.skills.push(skill);
-    }
-  });
+  // Extract skills using dynamic keyword system
+  const skills = await extractSkillsWithKeywords(text);
+  parsed.skills = skills;
 
   // Extract experience years
   const expMatch = text.match(/(\d+)\+?\s*years?\s*(of\s*)?(experience|exp)/i);
@@ -643,4 +720,4 @@ async function parseResume(filePath) {
   }
 }
 
-module.exports = { parseResume };
+module.exports = { parseResume, addSkillKeyword };
