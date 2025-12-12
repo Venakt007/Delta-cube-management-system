@@ -28,6 +28,7 @@ function AdminDashboard() {
   useEffect(() => {
     fetchAllResumes();
     fetchOnboardedResumes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAllResumes = async () => {

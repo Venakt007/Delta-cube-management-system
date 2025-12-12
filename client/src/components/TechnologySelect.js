@@ -19,6 +19,7 @@ const TechnologySelect = ({ value, onChange, name, required, className }) => {
 
   useEffect(() => {
     fetchTechnologies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const fetchTechnologies = async () => {
