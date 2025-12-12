@@ -34,6 +34,20 @@ function RecruiterDashboard() {
   const [parsing, setParsing] = useState(false);
   const [editingResume, setEditingResume] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState({});
+  const [showNewLocation, setShowNewLocation] = useState(false);
+  const [newLocation, setNewLocation] = useState('');
+  const [locations, setLocations] = useState([
+    'Bangalore, India',
+    'Hyderabad, India',
+    'Mumbai, India',
+    'Delhi, India',
+    'Pune, India',
+    'Chennai, India',
+    'Remote',
+    'USA',
+    'UK',
+    'Canada'
+  ]);
   
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -661,15 +675,63 @@ function RecruiterDashboard() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
-                      <input
-                        type="text"
-                        name="location"
-                        value={formData.location}
-                        onChange={handleChange}
-                        required
-                        placeholder="City, Country"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
+                      {!showNewLocation ? (
+                        <div className="flex gap-2">
+                          <select
+                            name="location"
+                            value={formData.location}
+                            onChange={handleChange}
+                            required
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Select Location</option>
+                            {locations.map((loc, idx) => (
+                              <option key={idx} value={loc}>{loc}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewLocation(true)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 whitespace-nowrap"
+                          >
+                            + Add New
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newLocation}
+                            onChange={(e) => setNewLocation(e.target.value)}
+                            placeholder="Enter new location"
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newLocation.trim()) {
+                                setLocations([...locations, newLocation.trim()]);
+                                setFormData({ ...formData, location: newLocation.trim() });
+                                setNewLocation('');
+                                setShowNewLocation(false);
+                              }
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNewLocation(false);
+                              setNewLocation('');
+                            }}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div>
