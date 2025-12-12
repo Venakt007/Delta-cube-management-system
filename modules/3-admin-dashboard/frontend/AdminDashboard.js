@@ -211,7 +211,7 @@ function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap">{resume.uploader_name || 'Public'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <a
-                          href={`http://localhost:5000${resume.resume_url}`}
+                          href={resume.resume_url?.startsWith('http') ? resume.resume_url : `${window.location.origin}${resume.resume_url}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline"
@@ -287,7 +287,7 @@ function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap">{resume.uploader_name || 'Public'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <a
-                          href={`http://localhost:5000${resume.resume_url}`}
+                          href={resume.resume_url?.startsWith('http') ? resume.resume_url : `${window.location.origin}${resume.resume_url}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline"
@@ -397,7 +397,7 @@ function AdminDashboard() {
                         <td className="px-6 py-4">{resume.experience_years} years</td>
                         <td className="px-6 py-4">{resume.location}</td>
                         <td className="px-6 py-4">
-                          <a href={`http://localhost:5000${resume.resume_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          <a href={resume.resume_url?.startsWith('http') ? resume.resume_url : `${window.location.origin}${resume.resume_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                             Download
                           </a>
                         </td>
@@ -473,7 +473,7 @@ function AdminDashboard() {
                           <td className="px-6 py-4">{match.experience_years} years</td>
                           <td className="px-6 py-4">{match.uploader_name || 'Public'}</td>
                           <td className="px-6 py-4">
-                            <a href={`http://localhost:5000${match.resume_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            <a href={match.resume_url?.startsWith('http') ? match.resume_url : `${window.location.origin}${match.resume_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                               Download
                             </a>
                           </td>

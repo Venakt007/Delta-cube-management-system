@@ -1038,7 +1038,7 @@ function RecruiterDashboard() {
                                 ✏️ Update
                               </button>
                               <a
-                                href={`http://localhost:5000${resume.resume_url}`}
+                                href={resume.resume_url?.startsWith('http') ? resume.resume_url : `${window.location.origin}${resume.resume_url}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-green-600 hover:underline"
