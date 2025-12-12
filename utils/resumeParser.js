@@ -222,7 +222,7 @@ Return ONLY the JSON object, no additional text.`
     }
     
     // Return basic parsing as fallback
-    return parseResumeBasic(text);
+    return await parseResumeBasic(text);
   }
 }
 
@@ -378,7 +378,7 @@ function parseResumeStructured(text) {
 }
 
 // Tier 2: Basic regex parsing (fallback, no AI)
-function parseResumeBasic(text) {
+async function parseResumeBasic(text) {
   console.log('🔍 Tier 2: Using basic regex parsing (no AI)');
   
   const parsed = {
@@ -625,7 +625,7 @@ async function parseResume(filePath) {
 
     // LEVEL 3: Try basic regex parsing
     console.log('🔍 LEVEL 3: Trying basic regex parsing...');
-    const basicResult = parseResumeBasic(text);
+    const basicResult = await parseResumeBasic(text);
     if (basicResult) {
       if (!result.name && basicResult.name !== 'Unknown') result.name = basicResult.name;
       if (!result.email && basicResult.email) result.email = basicResult.email;
