@@ -26,7 +26,12 @@ async function cleanParsedDataSkills() {
         
         // Clean skills array
         const cleanedSkills = originalSkills
-          .map(s => s.trim())
+          .map(s => {
+            let cleaned = s.trim();
+            // Remove "and ", "or ", "with " from the beginning
+            cleaned = cleaned.replace(/^(and|or|with|in|the|a|an)\s+/gi, '');
+            return cleaned.trim();
+          })
           .filter(s => {
             const lower = s.toLowerCase();
             return s.length > 1 && !junkWords.includes(lower);

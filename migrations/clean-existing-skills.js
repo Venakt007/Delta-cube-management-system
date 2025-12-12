@@ -27,7 +27,12 @@ async function cleanSkills() {
       if (resume.primary_skill) {
         const skills = resume.primary_skill
           .split(',')
-          .map(s => s.trim())
+          .map(s => {
+            let cleaned = s.trim();
+            // Remove "and ", "or ", "with " from the beginning
+            cleaned = cleaned.replace(/^(and|or|with|in|the|a|an)\s+/gi, '');
+            return cleaned.trim();
+          })
           .filter(s => {
             const lower = s.toLowerCase();
             return s.length > 1 && !junkWords.includes(lower);
@@ -47,7 +52,12 @@ async function cleanSkills() {
       if (resume.secondary_skill) {
         const skills = resume.secondary_skill
           .split(',')
-          .map(s => s.trim())
+          .map(s => {
+            let cleaned = s.trim();
+            // Remove "and ", "or ", "with " from the beginning
+            cleaned = cleaned.replace(/^(and|or|with|in|the|a|an)\s+/gi, '');
+            return cleaned.trim();
+          })
           .filter(s => {
             const lower = s.toLowerCase();
             return s.length > 1 && !junkWords.includes(lower);
