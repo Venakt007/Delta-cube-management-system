@@ -24,15 +24,19 @@ async function loadSkillsFromDatabase() {
     
     // Get all unique skills from applications table
     const result = await pool.query(`
-      SELECT DISTINCT 
-        TRIM(UNNEST(STRING_TO_ARRAY(primary_skill, ','))) as skill
-      FROM applications
-      WHERE primary_skill IS NOT NULL AND primary_skill != ''
-      UNION
-      SELECT DISTINCT 
-        TRIM(UNNEST(STRING_TO_ARRAY(secondary_skill, ','))) as skill
-      FROM applications
-      WHERE secondary_skill IS NOT NULL AND secondary_skill != ''
+      SELECT DISTINCT TRIM(skill) as skill
+      FROM (
+        SELECT TRIM(UNNEST(STRING_TO_ARRAY(primary_skill, ','))) as skill
+        FROM applications
+        WHERE primary_skill IS NOT NULL AND primary_skill != ''
+        UNION
+        SELECT TRIM(UNNEST(STRING_TO_ARRAY(secondary_skill, ','))) as skill
+        FROM applications
+        WHERE secondary_skill IS NOT NULL AND secondary_skill != ''
+      ) AS all_skills
+      WHERE skill != '' 
+        AND skill NOT IN ('and', 'or', 'with', 'in', 'the', 'a', 'an', '&')
+        AND LENGTH(skill) > 1
     `);
     
     // Add database skills to keywords (avoid duplicates)
