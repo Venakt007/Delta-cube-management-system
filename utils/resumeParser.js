@@ -563,9 +563,20 @@ async function parseResume(filePath) {
     const ext = filePath.toLowerCase();
 
     // Step 1: Extract text from file
-    if (ext.endsWith('.pdf')) {
+    // For Cloudinary URLs without extension, try PDF first, then DOCX
+    if (ext.endsWith('.pdf') || (!ext.endsWith('.docx') && !ext.endsWith('.doc') && filePath.includes('cloudinary'))) {
       console.log('📖 Extracting text from PDF...');
-      text = await extractTextFromPDF(filePath);
+      try {
+        text = await extractTextFromPDF(filePath);
+      } catch (pdfError) {
+        console.log('⚠️  PDF extraction failed, trying DOCX...');
+        if (!ext.endsWith('.pdf')) {
+          // If no extension and PDF failed, try DOCX
+          text = await extractTextFromDOCX(filePath);
+        } else {
+          throw pdfError;
+        }
+      }
     } else if (ext.endsWith('.docx') || ext.endsWith('.doc')) {
       console.log('📖 Extracting text from DOCX...');
       text = await extractTextFromDOCX(filePath);

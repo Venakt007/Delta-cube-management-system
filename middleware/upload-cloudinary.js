@@ -40,10 +40,13 @@ const storage = new CloudinaryStorage({
     const isDocument = ['.pdf', '.doc', '.docx'].includes(ext);
     const resourceType = isDocument ? 'raw' : 'image';
     
+    // Include file extension in public_id for proper parsing
+    const publicId = `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+    
     const params = {
       folder: folder,
       resource_type: resourceType,
-      public_id: `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`,
+      public_id: publicId,
       use_filename: false
     };
     
