@@ -1,6 +1,6 @@
 // Migration script to add technology column to Render database
 require('dotenv').config();
-const { pool } = require('../config/database');
+const pool = require('../config/db');
 
 async function runMigration() {
   try {

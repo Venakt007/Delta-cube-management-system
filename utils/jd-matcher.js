@@ -172,7 +172,7 @@ async function extractSkillsLevel4(text) {
   const foundSkills = new Set();
   
   try {
-    const { pool } = require('../config/database');
+    const pool = require('../config/db');
     
     // Get all unique skills from database
     const result = await pool.query(`

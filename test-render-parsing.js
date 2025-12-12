@@ -1,6 +1,6 @@
 // Test resume parsing on Render
 require('dotenv').config();
-const { pool } = require('./config/database');
+const pool = require('./config/db');
 const { parseResume } = require('./utils/resumeParser');
 
 async function testParsing() {

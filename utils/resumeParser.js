@@ -20,7 +20,7 @@ let skillKeywords = [
 // Load skills from database
 async function loadSkillsFromDatabase() {
   try {
-    const { pool } = require('../config/database');
+    const pool = require('../config/db');
     
     // Get all unique skills from applications table
     const result = await pool.query(`

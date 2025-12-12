@@ -1,6 +1,6 @@
 // Script to check skill keywords in the system
 require('dotenv').config();
-const { pool } = require('./config/database');
+const pool = require('./config/db');
 
 async function checkSkillKeywords() {
   try {
