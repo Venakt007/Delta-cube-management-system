@@ -166,53 +166,9 @@ async function extractLocationWithKeywords(text) {
   return '';
 }
 
-// Generate signed Cloudinary URL for private files
-function generateSignedCloudinaryUrl(url) {
-  try {
-    // Check if it's a Cloudinary URL
-    if (!url.includes('cloudinary.com')) {
-      return url;
-    }
-    
-    // Extract public_id from URL
-    // Example: https://res.cloudinary.com/cloud/raw/upload/v123/folder/file.pdf
-    const urlParts = url.split('/upload/');
-    if (urlParts.length !== 2) {
-      return url;
-    }
-    
-    const afterUpload = urlParts[1];
-    // Remove version number (v1234567890)
-    const publicIdWithFolder = afterUpload.replace(/^v\d+\//, '');
-    
-    // Generate signed URL using Cloudinary SDK
-    const cloudinary = require('cloudinary').v2;
-    
-    // Configure if not already configured
-    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-      cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET
-      });
-      
-      // Generate signed URL (valid for 1 hour)
-      const signedUrl = cloudinary.url(publicIdWithFolder, {
-        resource_type: 'raw',
-        type: 'upload',
-        sign_url: true,
-        secure: true
-      });
-      
-      console.log('🔐 Generated signed URL for private file');
-      return signedUrl;
-    }
-    
-    return url;
-  } catch (error) {
-    console.log('⚠️  Could not generate signed URL:', error.message);
-    return url;
-  }
+// Wait for Cloudinary to propagate access changes
+async function waitAndRetry(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // Extract text from PDF (handles both local files and URLs)
@@ -235,17 +191,17 @@ async function extractTextFromPDF(filePath) {
         console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
         dataBuffer = Buffer.from(response.data);
       } catch (downloadError) {
-        // If we get 401, try with signed URL
+        // If we get 401, wait and retry (Cloudinary might be propagating access changes)
         if (downloadError.response?.status === 401 && filePath.includes('cloudinary.com')) {
-          console.log('⚠️  Got 401 error, trying with signed URL...');
-          downloadUrl = generateSignedCloudinaryUrl(filePath);
+          console.log('⚠️  Got 401 error, waiting 2 seconds and retrying...');
+          await waitAndRetry(2000);
           
           const retryResponse = await axios.get(downloadUrl, { 
             responseType: 'arraybuffer',
             timeout: 30000,
             maxContentLength: 10 * 1024 * 1024
           });
-          console.log(`✅ Downloaded ${retryResponse.data.byteLength} bytes with signed URL`);
+          console.log(`✅ Downloaded ${retryResponse.data.byteLength} bytes after retry`);
           dataBuffer = Buffer.from(retryResponse.data);
         } else {
           throw downloadError;
@@ -291,17 +247,17 @@ async function extractTextFromDOCX(filePath) {
         console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
         buffer = Buffer.from(response.data);
       } catch (downloadError) {
-        // If we get 401, try with signed URL
+        // If we get 401, wait and retry (Cloudinary might be propagating access changes)
         if (downloadError.response?.status === 401 && filePath.includes('cloudinary.com')) {
-          console.log('⚠️  Got 401 error, trying with signed URL...');
-          downloadUrl = generateSignedCloudinaryUrl(filePath);
+          console.log('⚠️  Got 401 error, waiting 2 seconds and retrying...');
+          await waitAndRetry(2000);
           
           const retryResponse = await axios.get(downloadUrl, { 
             responseType: 'arraybuffer',
             timeout: 30000,
             maxContentLength: 10 * 1024 * 1024
           });
-          console.log(`✅ Downloaded ${retryResponse.data.byteLength} bytes with signed URL`);
+          console.log(`✅ Downloaded ${retryResponse.data.byteLength} bytes after retry`);
           buffer = Buffer.from(retryResponse.data);
         } else {
           throw downloadError;
