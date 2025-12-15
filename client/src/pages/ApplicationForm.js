@@ -50,6 +50,13 @@ function ApplicationForm() {
     setLoading(true);
     setMessage('');
 
+    // Validate primary skill is not empty
+    if (!formData.primary_skill || formData.primary_skill.trim() === '') {
+      setMessage('❌ Primary Skill is required! Please enter at least one skill.');
+      setLoading(false);
+      return;
+    }
+
     const data = new FormData();
     Object.keys(formData).forEach(key => {
       if (key === 'job_types') {

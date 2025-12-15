@@ -38,6 +38,11 @@ router.post('/submit', upload.fields([
       return res.status(400).json({ error: 'Name and email are required' });
     }
     
+    // Validate primary skill is mandatory
+    if (!primary_skill || primary_skill.trim() === '') {
+      return res.status(400).json({ error: 'Primary skill is required. Please enter at least one skill.' });
+    }
+    
     // Get file URLs - handle both Cloudinary and local storage
     let resumeUrl = null;
     if (req.files['resume']) {
@@ -481,6 +486,11 @@ router.post('/manual-entry', auth, isRecruiterOrAdmin, upload.fields([
     // Validate required fields
     if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required' });
+    }
+    
+    // Validate primary skill is mandatory
+    if (!primary_skill || primary_skill.trim() === '') {
+      return res.status(400).json({ error: 'Primary skill is required. Please enter at least one skill.' });
     }
     
     // Get file URLs - handle both Cloudinary and local storage
