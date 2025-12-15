@@ -17,6 +17,19 @@ let skillKeywords = [
   'Selenium', 'Jest', 'Mocha', 'Cypress', 'JUnit', 'Pytest', 'Postman'
 ];
 
+// Location keywords database
+let locationKeywords = [
+  'Hyderabad', 'Bangalore', 'Mumbai', 'Delhi', 'Pune', 'Chennai', 'Kolkata',
+  'Ahmedabad', 'Gurgaon', 'Noida', 'Jaipur', 'Lucknow', 'Chandigarh', 'Kochi',
+  'Indore', 'Visakhapatnam', 'Bhopal', 'Patna', 'Vadodara', 'Ludhiana',
+  'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia',
+  'San Antonio', 'San Diego', 'Dallas', 'San Jose', 'Austin', 'Jacksonville',
+  'San Francisco', 'Seattle', 'Denver', 'Washington', 'Boston', 'Nashville',
+  'London', 'Birmingham', 'Manchester', 'Glasgow', 'Liverpool', 'Leeds',
+  'Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide', 'Canberra',
+  'Remote', 'India', 'USA', 'UK', 'Canada', 'Australia', 'Singapore'
+];
+
 // Load skills from database
 async function loadSkillsFromDatabase() {
   try {
@@ -53,6 +66,33 @@ async function loadSkillsFromDatabase() {
   }
 }
 
+// Load locations from database
+async function loadLocationsFromDatabase() {
+  try {
+    const pool = require('../config/db');
+    
+    // Get all unique locations from applications table
+    const result = await pool.query(`
+      SELECT DISTINCT TRIM(location) as location
+      FROM applications
+      WHERE location IS NOT NULL AND location != ''
+      ORDER BY location
+    `);
+    
+    // Add database locations to keywords (avoid duplicates)
+    result.rows.forEach(row => {
+      const location = row.location.trim();
+      if (location && location.length > 2 && !locationKeywords.some(k => k.toLowerCase() === location.toLowerCase())) {
+        locationKeywords.push(location);
+      }
+    });
+    
+    console.log(`✅ Loaded ${result.rows.length} locations from database. Total location keywords: ${locationKeywords.length}`);
+  } catch (error) {
+    console.log('⚠️  Could not load locations from database:', error.message);
+  }
+}
+
 // Add new skill to keywords
 function addSkillKeyword(skill) {
   const trimmed = skill.trim();
@@ -85,6 +125,45 @@ async function extractSkillsWithKeywords(text) {
   
   console.log(`   ✓ Found ${foundSkills.length} skills: ${foundSkills.slice(0, 5).join(', ')}${foundSkills.length > 5 ? '...' : ''}`);
   return foundSkills.slice(0, 20); // Limit to 20 skills
+}
+
+// Extract location using keyword matching
+async function extractLocationWithKeywords(text) {
+  // Load latest locations from database (cache for 5 minutes)
+  if (!extractLocationWithKeywords.lastLoad || Date.now() - extractLocationWithKeywords.lastLoad > 300000) {
+    await loadLocationsFromDatabase();
+    extractLocationWithKeywords.lastLoad = Date.now();
+  }
+  
+  const textLower = text.toLowerCase();
+  const foundLocations = [];
+  
+  // Check each location keyword
+  locationKeywords.forEach(location => {
+    const locationLower = location.toLowerCase();
+    // Use word boundary for better matching
+    const regex = new RegExp(`\\b${locationLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(textLower)) {
+      foundLocations.push(location);
+    }
+  });
+  
+  // Return the first found location (most likely to be correct)
+  if (foundLocations.length > 0) {
+    console.log(`   ✓ Found location: ${foundLocations[0]}`);
+    return foundLocations[0];
+  }
+  
+  // Fallback: Try to find "City, State/Country" pattern
+  const locationPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2,}|[A-Z][a-z]+)\b/g;
+  const matches = text.match(locationPattern);
+  if (matches && matches.length > 0) {
+    console.log(`   ✓ Found location (pattern): ${matches[0]}`);
+    return matches[0];
+  }
+  
+  console.log('   ✗ No location found');
+  return '';
 }
 
 // Extract text from PDF (handles both local files and URLs)
@@ -231,7 +310,7 @@ Return ONLY the JSON object, no additional text.`
 }
 
 // Tier 1: Structured parsing (fast, rule-based, no AI)
-function parseResumeStructured(text) {
+async function parseResumeStructured(text) {
   console.log('🔍 Tier 1: Attempting structured parsing...');
   
   // Define section keywords (case-insensitive)
@@ -318,9 +397,11 @@ function parseResumeStructured(text) {
   const linkedinMatch = headerText.match(/linkedin\.com\/in\/[\w-]+/i);
   if (linkedinMatch) parsed.linkedin = 'https://' + linkedinMatch[0];
 
-  // Extract location from header (common patterns)
-  const locationMatch = headerText.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2}|[A-Z][a-z]+)/);
-  if (locationMatch) parsed.location = locationMatch[0];
+  // Extract location using keyword matching (better detection)
+  const location = await extractLocationWithKeywords(headerText);
+  if (location) {
+    parsed.location = location;
+  }
 
   // Parse summary
   if (sections.summary) {
@@ -548,9 +629,11 @@ async function parseResumeBasic(text) {
   const linkedinMatch = text.match(/linkedin\.com\/in\/[\w-]+/i);
   if (linkedinMatch) parsed.linkedin = 'https://' + linkedinMatch[0];
 
-  // Extract location (city, state/country pattern)
-  const locationMatch = text.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2}|[A-Z][a-z]+)/);
-  if (locationMatch) parsed.location = locationMatch[0];
+  // Extract location using keyword matching (better than regex)
+  const location = await extractLocationWithKeywords(text);
+  if (location) {
+    parsed.location = location;
+  }
 
   console.log('✅ Tier 2: Basic parsing complete:', parsed.name);
   parsed.tier = 'tier2';
@@ -628,12 +711,13 @@ async function parseResume(filePath) {
 
     // LEVEL 2: Try structured parsing
     console.log('🔍 LEVEL 2: Trying structured parsing...');
-    const structuredResult = parseResumeStructured(text);
+    const structuredResult = await parseResumeStructured(text);
     if (structuredResult) {
       // Merge results, keeping AI data if better
       if (!result.name && structuredResult.name !== 'Unknown') result.name = structuredResult.name;
       if (!result.email && structuredResult.email) result.email = structuredResult.email;
       if (!result.phone && structuredResult.phone) result.phone = structuredResult.phone;
+      if (!result.location && structuredResult.location) result.location = structuredResult.location;
       if (structuredResult.skills.length > result.skills.length) result.skills = structuredResult.skills;
       if (structuredResult.experience_years > 0) result.experience_years = structuredResult.experience_years;
     }
@@ -645,6 +729,7 @@ async function parseResume(filePath) {
       if (!result.name && basicResult.name !== 'Unknown') result.name = basicResult.name;
       if (!result.email && basicResult.email) result.email = basicResult.email;
       if (!result.phone && basicResult.phone) result.phone = basicResult.phone;
+      if (!result.location && basicResult.location) result.location = basicResult.location;
       if (basicResult.skills.length > result.skills.length) result.skills = basicResult.skills;
       if (!result.experience_years && basicResult.experience_years > 0) result.experience_years = basicResult.experience_years;
     }
