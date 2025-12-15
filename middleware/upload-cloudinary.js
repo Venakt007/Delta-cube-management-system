@@ -48,7 +48,9 @@ const storage = new CloudinaryStorage({
       resource_type: resourceType,
       public_id: publicId,
       use_filename: false,
-      access_mode: 'public'  // Make files publicly accessible
+      access_mode: 'public',  // Make files publicly accessible
+      // Use upload preset if available (recommended for better control)
+      upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET || undefined
     };
     
     // Only add allowed_formats for images (not for raw files)
