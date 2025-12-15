@@ -47,7 +47,8 @@ const storage = new CloudinaryStorage({
       folder: folder,
       resource_type: resourceType,
       public_id: publicId,
-      use_filename: false
+      use_filename: false,
+      access_mode: 'public'  // Make files publicly accessible
     };
     
     // Only add allowed_formats for images (not for raw files)

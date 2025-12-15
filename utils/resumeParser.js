@@ -166,6 +166,55 @@ async function extractLocationWithKeywords(text) {
   return '';
 }
 
+// Generate signed Cloudinary URL for private files
+function generateSignedCloudinaryUrl(url) {
+  try {
+    // Check if it's a Cloudinary URL
+    if (!url.includes('cloudinary.com')) {
+      return url;
+    }
+    
+    // Extract public_id from URL
+    // Example: https://res.cloudinary.com/cloud/raw/upload/v123/folder/file.pdf
+    const urlParts = url.split('/upload/');
+    if (urlParts.length !== 2) {
+      return url;
+    }
+    
+    const afterUpload = urlParts[1];
+    // Remove version number (v1234567890)
+    const publicIdWithFolder = afterUpload.replace(/^v\d+\//, '');
+    
+    // Generate signed URL using Cloudinary SDK
+    const cloudinary = require('cloudinary').v2;
+    
+    // Configure if not already configured
+    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+      });
+      
+      // Generate signed URL (valid for 1 hour)
+      const signedUrl = cloudinary.url(publicIdWithFolder, {
+        resource_type: 'raw',
+        type: 'upload',
+        sign_url: true,
+        secure: true
+      });
+      
+      console.log('🔐 Generated signed URL for private file');
+      return signedUrl;
+    }
+    
+    return url;
+  } catch (error) {
+    console.log('⚠️  Could not generate signed URL:', error.message);
+    return url;
+  }
+}
+
 // Extract text from PDF (handles both local files and URLs)
 async function extractTextFromPDF(filePath) {
   let dataBuffer;
@@ -174,13 +223,34 @@ async function extractTextFromPDF(filePath) {
     // Check if it's a URL
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
       console.log('📥 Downloading PDF from URL:', filePath);
-      const response = await axios.get(filePath, { 
-        responseType: 'arraybuffer',
-        timeout: 30000,  // 30 second timeout
-        maxContentLength: 10 * 1024 * 1024  // 10MB max
-      });
-      console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
-      dataBuffer = Buffer.from(response.data);
+      
+      let downloadUrl = filePath;
+      
+      try {
+        const response = await axios.get(downloadUrl, { 
+          responseType: 'arraybuffer',
+          timeout: 30000,  // 30 second timeout
+          maxContentLength: 10 * 1024 * 1024  // 10MB max
+        });
+        console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
+        dataBuffer = Buffer.from(response.data);
+      } catch (downloadError) {
+        // If we get 401, try with signed URL
+        if (downloadError.response?.status === 401 && filePath.includes('cloudinary.com')) {
+          console.log('⚠️  Got 401 error, trying with signed URL...');
+          downloadUrl = generateSignedCloudinaryUrl(filePath);
+          
+          const retryResponse = await axios.get(downloadUrl, { 
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            maxContentLength: 10 * 1024 * 1024
+          });
+          console.log(`✅ Downloaded ${retryResponse.data.byteLength} bytes with signed URL`);
+          dataBuffer = Buffer.from(retryResponse.data);
+        } else {
+          throw downloadError;
+        }
+      }
     } else {
       // Local file
       console.log('📂 Reading local file:', filePath);
@@ -208,13 +278,36 @@ async function extractTextFromDOCX(filePath) {
     // Check if it's a URL
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
       console.log('📥 Downloading DOCX from URL:', filePath);
-      const response = await axios.get(filePath, { 
-        responseType: 'arraybuffer',
-        timeout: 30000,
-        maxContentLength: 10 * 1024 * 1024
-      });
-      console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
-      const buffer = Buffer.from(response.data);
+      
+      let downloadUrl = filePath;
+      let buffer;
+      
+      try {
+        const response = await axios.get(downloadUrl, { 
+          responseType: 'arraybuffer',
+          timeout: 30000,
+          maxContentLength: 10 * 1024 * 1024
+        });
+        console.log(`✅ Downloaded ${response.data.byteLength} bytes`);
+        buffer = Buffer.from(response.data);
+      } catch (downloadError) {
+        // If we get 401, try with signed URL
+        if (downloadError.response?.status === 401 && filePath.includes('cloudinary.com')) {
+          console.log('⚠️  Got 401 error, trying with signed URL...');
+          downloadUrl = generateSignedCloudinaryUrl(filePath);
+          
+          const retryResponse = await axios.get(downloadUrl, { 
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            maxContentLength: 10 * 1024 * 1024
+          });
+          console.log(`✅ Downloaded ${retryResponse.data.byteLength} bytes with signed URL`);
+          buffer = Buffer.from(retryResponse.data);
+        } else {
+          throw downloadError;
+        }
+      }
+      
       console.log('📖 Parsing DOCX...');
       const result = await mammoth.extractRawText({ buffer: buffer });
       console.log(`✅ Extracted ${result.value.length} characters from DOCX`);
