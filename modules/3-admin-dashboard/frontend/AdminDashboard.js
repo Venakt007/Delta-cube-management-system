@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import LocationSelect from '../../../client/src/components/LocationSelect';
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('all');
@@ -331,9 +332,8 @@ function AdminDashboard() {
                   onChange={(e) => setFilters({ ...filters, experience_max: e.target.value })}
                   className="px-4 py-2 border border-gray-300 rounded-lg"
                 />
-                <input
-                  type="text"
-                  placeholder="Location"
+                <LocationSelect
+                  name="location"
                   value={filters.location}
                   onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                   className="px-4 py-2 border border-gray-300 rounded-lg"

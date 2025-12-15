@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import LocationAutocomplete from '../components/LocationAutocomplete';
+import LocationSelect from '../components/LocationSelect';
 import TechnologySelect from '../components/TechnologySelect';
 
 function ApplicationForm() {
@@ -185,12 +185,11 @@ function ApplicationForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
-              <LocationAutocomplete
+              <LocationSelect
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
                 required
-                placeholder="City, Country"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

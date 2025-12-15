@@ -1,58 +1,41 @@
 const express = require('express');
-const axios = require('axios');
+const pool = require('../config/db');
 
 const router = express.Router();
 
-// Google Places API Autocomplete
-router.get('/autocomplete', async (req, res) => {
+// Get all locations
+router.get('/', async (req, res) => {
   try {
-    const { input } = req.query;
-    
-    if (!input || input.length < 2) {
-      return res.json({ predictions: [] });
-    }
-
-    // Get API key from environment
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-    
-    if (!apiKey) {
-      console.warn('⚠️  GOOGLE_PLACES_API_KEY not set, using fallback locations');
-      return res.json({ predictions: [] });
-    }
-
-    // Call Google Places API
-    const response = await axios.get(
-      'https://maps.googleapis.com/maps/api/place/autocomplete/json',
-      {
-        params: {
-          input: input,
-          key: apiKey,
-          types: '(cities)',
-          components: 'country:in' // Restrict to India
-        }
-      }
+    const result = await pool.query(
+      `SELECT DISTINCT TRIM(location) as name 
+       FROM applications 
+       WHERE location IS NOT NULL AND location != '' 
+       ORDER BY location ASC`
     );
-
-    console.log('Google Places API Response:', JSON.stringify(response.data, null, 2));
-
-    // Check for API errors
-    if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
-      console.error('Google Places API Error Status:', response.data.status);
-      console.error('Error Message:', response.data.error_message);
-      return res.json({ predictions: [], error: response.data.error_message });
-    }
-
-    // Format predictions
-    const predictions = response.data.predictions.map(p => p.description);
-
-    res.json({ predictions: predictions.slice(0, 5) });
+    
+    const locations = result.rows.map(row => row.name);
+    res.json(locations);
   } catch (error) {
-    console.error('Google Places API error:', error.message);
-    if (error.response) {
-      console.error('Error response:', error.response.data);
+    console.error('Failed to fetch locations:', error);
+    res.status(500).json({ error: 'Failed to fetch locations' });
+  }
+});
+
+// Add new location (just returns success - locations are auto-added when used)
+router.post('/', async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Location name is required' });
     }
-    // Return empty array on error (frontend will use fallback)
-    res.json({ predictions: [] });
+    
+    // We don't need to insert into a separate table
+    // Locations are automatically added when candidates use them
+    res.json({ message: 'Location will be added when used', name: name.trim() });
+  } catch (error) {
+    console.error('Failed to add location:', error);
+    res.status(500).json({ error: 'Failed to add location' });
   }
 });
 
